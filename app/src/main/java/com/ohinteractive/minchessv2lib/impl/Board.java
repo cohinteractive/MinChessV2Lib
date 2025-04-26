@@ -98,18 +98,24 @@ public class Board {
     public static long[] fromFen(String fen) {
         long[] board = new long[MAX_BITBOARDS];
         int[] pieces = Fen.getPieces(fen);
+        long board0 = 0;
+        long board1 = 0;
+        long board2 = 0;
+        long board3 = 0;
         for(int square = SQUARE_A1; square <= SQUARE_H8; square ++) {
             int piece = pieces[square];
             if(piece != Value.NONE) {
                 long squareBit = 1L << square;
-                System.out.println("square: " + square + " piece: " + piece + "\nsquarebit:");
-                Bitboard.drawBitboard(squareBit);
-                board[0] |= -(piece & 1) & squareBit;
-                board[1] |= -(piece >>> 1 & 1) & squareBit;
-                board[2] |= -(piece >>> 2 & 1) & squareBit;
-                board[3] |= -(piece >>> 3 & 1) & squareBit;
+                board0 |= -(piece & 1) & squareBit;
+                board1 |= -(piece >>> 1 & 1) & squareBit;
+                board2 |= -(piece >>> 2 & 1) & squareBit;
+                board3 |= -(piece >>> 3 & 1) & squareBit;
             }
         }
+        board[0] = board0;
+        board[1] = board1;
+        board[2] = board2;
+        board[3] = board3;
         boolean whiteToMove = Fen.getWhiteToMove(fen);
         long status = whiteToMove ? Value.WHITE : Value.BLACK;
         int castling = Fen.getCastling(fen);
@@ -317,9 +323,9 @@ public class Board {
     }
 
     public static int getSquare(long[] board, int square) {
-        return (int) ((board[3] >>> square & 1 << 3) |
-                      (board[2] >>> square & 1 << 2) |
-                      (board[1] >>> square & 1 << 1) |
+        return (int) (((board[3] >>> square & 1) << 3) |
+                      ((board[2] >>> square & 1) << 2) |
+                      ((board[1] >>> square & 1) << 1) |
                       (board[0] >>> square & 1));
     }
 
