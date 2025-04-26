@@ -117,17 +117,15 @@ public class Board {
         board[2] = board2;
         board[3] = board3;
         boolean whiteToMove = Fen.getWhiteToMove(fen);
-        long status = whiteToMove ? Value.WHITE : Value.BLACK;
         int castling = Fen.getCastling(fen);
-        status ^= castling << CASTLING_SHIFT;
+        long status = (whiteToMove ? Value.WHITE : Value.BLACK) ^ castling << CASTLING_SHIFT;
         int eSquare = Fen.getEnPassantSquare(fen);
         if((whiteToMove && (eSquare > 39 && eSquare < 48)) || (!whiteToMove && (eSquare > 15 && eSquare < 24))) {
             status ^= eSquare << ESQUARE_SHIFT;
         } else {
             eSquare = Value.INVALID;
         }
-        status ^= Fen.getHalfMoveClock(fen) << HALF_MOVE_CLOCK_SHIFT;
-        board[STATUS] = status ^ Fen.getFullMoveNumber(fen) << FULL_MOVE_NUMBER_SHIFT;
+        board[STATUS] = status ^ Fen.getHalfMoveClock(fen) << HALF_MOVE_CLOCK_SHIFT ^ Fen.getFullMoveNumber(fen) << FULL_MOVE_NUMBER_SHIFT;
         board[KEY] = Zobrist.getKey(pieces, whiteToMove, (castling & WHITE_KINGSIDE_BIT) != 0,
             (castling & WHITE_QUEENSIDE_BIT) != 0, (castling & BLACK_KINGSIDE_BIT) != 0,
             (castling & BLACK_QUEENSIDE_BIT) != 0, eSquare);
@@ -254,8 +252,8 @@ public class Board {
                 } else {
                     final long startSquareBit = 1L << startSquare;
                     board0 ^= -(promotePiece & 1) & targetSquareBit;
-                    board1 ^= startSquareBit ^ (-(promotePiece >>> 1 & 1) & targetSquareBit);
-                    board2 ^= startSquareBit ^ (-(promotePiece >>> 2 & 1) & targetSquareBit);
+                    board1 ^= startSquareBit | (-(promotePiece >>> 1 & 1) & targetSquareBit);
+                    board2 ^= startSquareBit | (-(promotePiece >>> 2 & 1) & targetSquareBit);
                     board3 ^= -(player & 1) & (startSquareBit | targetSquareBit);
                     key ^= Zobrist.PIECE[startPieceType][player][startSquare]
                         ^  Zobrist.PIECE[promotePiece & Piece.TYPE][player][targetSquare];
@@ -341,26 +339,24 @@ public class Board {
         final long board1 = board[1];
         final long board2 = board[2];
         final long board3 = board[3];
-        if((LEAP_ATTACKS[square] & (board0 & ~board1 & board2 & (-(player & 1) & board3))) != 0L) return true;
-        if((PAWN_ATTACKS[1 ^ player][square] & (~board0 & board1 & board2 & (-(player & 1) & board3))) != 0L) return true;
-        if((KING_ATTACKS[square] & (board0 & ~board1 & ~board2 & (-(player & 1) & board3))) != 0L) return true;
+        final int other = 1 ^ player;
+        if((LEAP_ATTACKS[square] & (board0 | board2) & (-(other & 1) ^ board3)) != 0L) return true;
+        if((PAWN_ATTACKS[other][square] & (board1 | board2) & (-(other & 1) ^ board3)) != 0L) return true;
+        if((KING_ATTACKS[square] & board0 & (-(other & 1) ^ board3)) != 0L) return true;
         final long allOccupancy = board0 | board1| board2;
-        if((Magic.bishopMoves(square, allOccupancy) & (~board0 & ~board1 & board2 & (-(player & 1) & board3))
-        | (~board0 & board1 & ~board2 & (-(player & 1) & board3))) != 0L) return true;
-        if((Magic.rookMoves(square, allOccupancy) & (board0 & board1 & ~board2 & (-(player & 1) & board3))
-        | (~board0 & board1 & ~board2 & (-(player & 1) & board3))) != 0L) return true;
+        if((Magic.bishopMoves(square, allOccupancy) & (( board2           & (-(other & 1) ^ board3)) | (board1 & (-(other & 1) ^ board3)))) != 0L) return true;
+        if((Magic.rookMoves  (square, allOccupancy) & (((board0 | board1) & (-(other & 1) ^ board3)) | (board1 & (-(other & 1) ^ board3)))) != 0L) return true;
         return false;
     }
 
     public static boolean isSquareAttackedByPlayer(long board0, long board1, long board2, long board3, int square, int player) {
-        if((LEAP_ATTACKS[square] & (board0 & ~board1 & board2 & (-(player & 1) & board3))) != 0L) return true;
-        if((PAWN_ATTACKS[1 ^ player][square] & (~board0 & board1 & board2 & (-(player & 1) & board3))) != 0L) return true;
-        if((KING_ATTACKS[square] & (board0 & ~board1 & ~board2 & (-(player & 1) & board3))) != 0L) return true;
+        final int other = 1 ^ player;
+        if((LEAP_ATTACKS[square] & (board0 | board2) & (-(other & 1) ^ board3)) != 0L) return true;
+        if((PAWN_ATTACKS[other][square] & (board1 | board2) & (-(other & 1) ^ board3)) != 0L) return true;
+        if((KING_ATTACKS[square] & board0 & (-(other & 1) ^ board3)) != 0L) return true;
         final long allOccupancy = board0 | board1| board2;
-        if((Magic.bishopMoves(square, allOccupancy) & (~board0 & ~board1 & board2 & (-(player & 1) & board3))
-        | (~board0 & board1 & ~board2 & (-(player & 1) & board3))) != 0L) return true;
-        if((Magic.rookMoves(square, allOccupancy) & (board0 & board1 & ~board2 & (-(player & 1) & board3))
-        | (~board0 & board1 & ~board2 & (-(player & 1) & board3))) != 0L) return true;
+        if((Magic.bishopMoves(square, allOccupancy) & (( board2           & (-(other & 1) ^ board3)) | (board1 & (-(other & 1) ^ board3)))) != 0L) return true;
+        if((Magic.rookMoves  (square, allOccupancy) & (((board0 | board1) & (-(other & 1) ^ board3)) | (board1 & (-(other & 1) ^ board3)))) != 0L) return true;
         return false;
     }
 
@@ -369,15 +365,26 @@ public class Board {
         final long board1 = board[1];
         final long board2 = board[2];
         final long board3 = board[3];
-        final int square = BitOps.lsb(board0 & ~board1 & ~board2 & (-(player & 1) & board3));
-        if((LEAP_ATTACKS[square] & (board0 & ~board1 & board2 & (-(player & 1) & board3))) != 0L) return true;
-        if((PAWN_ATTACKS[1 ^ player][square] & (~board0 & board1 & board2 & (-(player & 1) & board3))) != 0L) return true;
-        if((KING_ATTACKS[square] & (board0 & ~board1 & ~board2 & (-(player & 1) & board3))) != 0L) return true;
+        final int other = 1 ^ player;
+        final int square = BitOps.lsb(board0 & (-(other & 1) ^ board3));
+        if((LEAP_ATTACKS[square] & (board0 | board2) & (-(other & 1) ^ board3)) != 0L) return true;
+        if((PAWN_ATTACKS[other][square] & (board1 | board2) & (-(other & 1) ^ board3)) != 0L) return true;
+        if((KING_ATTACKS[square] & board0 & (-(other & 1) ^ board3)) != 0L) return true;
         final long allOccupancy = board0 | board1| board2;
-        if((Magic.bishopMoves(square, allOccupancy) & (~board0 & ~board1 & board2 & (-(player & 1) & board3))
-        | (~board0 & board1 & ~board2 & (-(player & 1) & board3))) != 0L) return true;
-        if((Magic.rookMoves(square, allOccupancy) & (board0 & board1 & ~board2 & (-(player & 1) & board3))
-        | (~board0 & board1 & ~board2 & (-(player & 1) & board3))) != 0L) return true;
+        if((Magic.bishopMoves(square, allOccupancy) & (( board2           & (-(other & 1) ^ board3)) | (board1 & (-(other & 1) ^ board3)))) != 0L) return true;
+        if((Magic.rookMoves  (square, allOccupancy) & (((board0 | board1) & (-(other & 1) ^ board3)) | (board1 & (-(other & 1) ^ board3)))) != 0L) return true;
+        return false;
+    }
+
+    public static boolean isPlayerInCheck(long board0, long board1, long board2, long board3, int player) {
+        final int other = 1 ^ player;
+        final int square = BitOps.lsb(board0 & (-(other & 1) ^ board3));
+        if((LEAP_ATTACKS[square] & (board0 | board2) & (-(other & 1) ^ board3)) != 0L) return true;
+        if((PAWN_ATTACKS[other][square] & (board1 | board2) & (-(other & 1) ^ board3)) != 0L) return true;
+        if((KING_ATTACKS[square] & board0 & (-(other & 1) ^ board3)) != 0L) return true;
+        final long allOccupancy = board0 | board1| board2;
+        if((Magic.bishopMoves(square, allOccupancy) & (( board2           & (-(other & 1) ^ board3)) | (board1 & (-(other & 1) ^ board3)))) != 0L) return true;
+        if((Magic.rookMoves  (square, allOccupancy) & (((board0 | board1) & (-(other & 1) ^ board3)) | (board1 & (-(other & 1) ^ board3)))) != 0L) return true;
         return false;
     }
 
