@@ -352,6 +352,18 @@ public class Board {
         return false;
     }
 
+    public static boolean isSquareAttackedByPlayer(long board0, long board1, long board2, long board3, int square, int player) {
+        if((LEAP_ATTACKS[square] & (board0 & ~board1 & board2 & (-(player & 1) & board3))) != 0L) return true;
+        if((PAWN_ATTACKS[1 ^ player][square] & (~board0 & board1 & board2 & (-(player & 1) & board3))) != 0L) return true;
+        if((KING_ATTACKS[square] & (board0 & ~board1 & ~board2 & (-(player & 1) & board3))) != 0L) return true;
+        final long allOccupancy = board0 | board1| board2;
+        if((Magic.bishopMoves(square, allOccupancy) & (~board0 & ~board1 & board2 & (-(player & 1) & board3))
+        | (~board0 & board1 & ~board2 & (-(player & 1) & board3))) != 0L) return true;
+        if((Magic.rookMoves(square, allOccupancy) & (board0 & board1 & ~board2 & (-(player & 1) & board3))
+        | (~board0 & board1 & ~board2 & (-(player & 1) & board3))) != 0L) return true;
+        return false;
+    }
+
     public static boolean isPlayerInCheck(long[] board, int player) {
         final long board0 = board[0];
         final long board1 = board[1];
