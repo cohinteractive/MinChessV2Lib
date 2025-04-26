@@ -329,6 +329,13 @@ public class Board {
                       (board[0] >>> square & 1));
     }
 
+    public static int getSquare(long board0, long board1, long board2, long board3, int square) {
+        return (int) (((board3 >>> square & 1) << 3) |
+                      ((board2 >>> square & 1) << 2) |
+                      ((board1 >>> square & 1) << 1) |
+                      (board0 >>> square & 1));
+    }
+
     public static boolean isSquareAttackedByPlayer(long[] board, int square, int player) {
         final long board0 = board[0];
         final long board1 = board[1];
