@@ -376,11 +376,17 @@ public class Bitboard {
     }
 
 	public static void drawBitboard(long bitboard) {
+		System.out.println(toString(bitboard));
+	}
+
+	public static String toString(long bitboard) {
+		StringBuilder string = new StringBuilder();
 		for(int i = 0; i < 64; i ++) {
 			long squareBit = 1L << (i ^ 0x38);
-			System.out.print((bitboard & squareBit) != 0 ? "1 " : ". ");
-			if((i & 7) == 7) System.out.println();
+			string.append((bitboard & squareBit) != 0 ? "1 " : ". ");
+			if((i & 7) == 7) string.append("\n");
  		}
+		return string.toString();
 	}
 
     private Bitboard() {}
