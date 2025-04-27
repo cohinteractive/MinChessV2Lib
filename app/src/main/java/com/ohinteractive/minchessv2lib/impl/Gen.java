@@ -20,15 +20,16 @@ public class Gen {
         final long board3 = board[3];
         final int status = (int) board[Board.STATUS];
         final long allOccupancy = board0 | board1 | board2;
-        final long otherOccupancy = allOccupancy & (-(player & 1) ^ board3);
+        final long colorMask = ~(-(player & 1) ^ board3);
+        final long otherOccupancy = allOccupancy & ~colorMask;
         long[] moves = new long[MAX_MOVELIST_SIZE];
         int moveListLength = 0;
-        moveListLength = getKingMoves(board0, board1, board2, board3, status, moves, Piece.KING | playerBit, moveListLength, player, allOccupancy, otherOccupancy, tactical);
-        moveListLength = getQueenMoves(board0, board1, board2, board3, moves, Piece.QUEEN | playerBit, player, moveListLength, allOccupancy, otherOccupancy, tactical);
-        moveListLength = getPawnMoves(board0, board1, board2, board3, status, moves, Piece.PAWN | playerBit, moveListLength, player, allOccupancy, otherOccupancy, tactical);
-        moveListLength = getRookMoves(board0, board1, board2, board3, moves, Piece.ROOK | playerBit, player, moveListLength, allOccupancy, otherOccupancy, tactical);
-        moveListLength = getBishopMoves(board0, board1, board2, board3, moves, Piece.BISHOP | playerBit, player, moveListLength, allOccupancy, otherOccupancy, tactical);
-        moveListLength = getKnightMoves(board0, board1, board2, board3, player, moves, Piece.KNIGHT | playerBit, moveListLength, allOccupancy, otherOccupancy, tactical);
+        moveListLength = getKingMoves(board0, board1, board2, board3, colorMask, status, moves, Piece.KING | playerBit, moveListLength, player, allOccupancy, otherOccupancy, tactical);
+        moveListLength = getQueenMoves(board0, board1, board2, board3, colorMask, moves, Piece.QUEEN | playerBit, player, moveListLength, allOccupancy, otherOccupancy, tactical);
+        moveListLength = getPawnMoves(board0, board1, board2, board3, colorMask, status, moves, Piece.PAWN | playerBit, moveListLength, player, allOccupancy, otherOccupancy, tactical);
+        moveListLength = getRookMoves(board0, board1, board2, board3, colorMask, moves, Piece.ROOK | playerBit, player, moveListLength, allOccupancy, otherOccupancy, tactical);
+        moveListLength = getBishopMoves(board0, board1, board2, board3, colorMask, moves, Piece.BISHOP | playerBit, player, moveListLength, allOccupancy, otherOccupancy, tactical);
+        moveListLength = getKnightMoves(board0, board1, board2, board3, colorMask, player, moves, Piece.KNIGHT | playerBit, moveListLength, allOccupancy, otherOccupancy, tactical);
         moves[MOVELIST_SIZE] = moveListLength;
         return legal ? purgeIllegalMoves(board, moves, player) : moves;
     }
@@ -47,8 +48,8 @@ public class Gen {
         return legalMoves;
     }
 
-    private static int getKingMoves(long board0, long board1, long board2, long board3, int status, long[] moves, int piece, int moveListLength, int player, long allOccupancy, long otherOccupancy, boolean tactical) {
-        final long bitboard = board0 & ~board1 & ~board2 & (-((1 ^ player) & 1) ^ board3);
+    private static int getKingMoves(long board0, long board1, long board2, long board3, long colorMask, int status, long[] moves, int piece, int moveListLength, int player, long allOccupancy, long otherOccupancy, boolean tactical) {
+        final long bitboard = board0 & ~board1 & ~board2 & colorMask;
         final int square = BitOps.lsb(bitboard);
         final long kingAttacks = KING_ATTACKS[square];
         long moveBitboard = kingAttacks & otherOccupancy;
@@ -82,8 +83,8 @@ public class Gen {
         return moveListLength;
     }
 
-    private static int getKnightMoves(long board0, long board1, long board2, long board3, int player, long[] moves, int piece, int moveListLength, long allOccupancy, long otherOccupancy, boolean tactical) {
-        long knightBitboard = board0 & ~board1 & board2 & (-((1 ^ player) & 1) ^ board3);
+    private static int getKnightMoves(long board0, long board1, long board2, long board3, long colorMask, int player, long[] moves, int piece, int moveListLength, long allOccupancy, long otherOccupancy, boolean tactical) {
+        long knightBitboard = board0 & ~board1 & board2 & colorMask;
         while(knightBitboard != 0L) {
             final int square = BitOps.lsb(knightBitboard);
             knightBitboard &= knightBitboard - 1;
@@ -104,8 +105,8 @@ public class Gen {
         return moveListLength;
     }
 
-    private static int getPawnMoves(long board0, long board1, long board2, long board3, int status, long[] moves, int piece, int moveListLength, int player, long allOccupancy, long otherOccupancy, boolean tactical) {
-        long pawnBitboard = ~board0 & board1 & board2 & (-((1 ^ player) & 1) ^ board3);
+    private static int getPawnMoves(long board0, long board1, long board2, long board3, long colorMask, int status, long[] moves, int piece, int moveListLength, int player, long allOccupancy, long otherOccupancy, boolean tactical) {
+        long pawnBitboard = ~board0 & board1 & board2 & colorMask;
         final int playerBit = player << Board.PLAYER_SHIFT;
         final int eSquare = status >>> Board.ESQUARE_SHIFT & Board.SQUARE_BITS;
         otherOccupancy |= (eSquare > 0 ? (1L << eSquare) : 0L);
@@ -153,8 +154,8 @@ public class Gen {
         return moveListLength;
     }
 
-    private static int getQueenMoves(long board0, long board1, long board2,long board3, long[] moves, int piece, int player, int moveListLength, long allOccupancy, long otherOccupancy, boolean tactical) {
-        long queenBitboard = ~board0 & board1 & ~board2 & (-((1 ^ player) & 1) ^ board3);
+    private static int getQueenMoves(long board0, long board1, long board2,long board3, long colorMask, long[] moves, int piece, int player, int moveListLength, long allOccupancy, long otherOccupancy, boolean tactical) {
+        long queenBitboard = ~board0 & board1 & ~board2 & colorMask;
         while(queenBitboard != 0L) {
             final int square = BitOps.lsb(queenBitboard);
             queenBitboard &= queenBitboard - 1;
@@ -175,8 +176,8 @@ public class Gen {
         return moveListLength;
     }
 
-    private static int getRookMoves(long board0, long board1, long board2, long board3, long[] moves, int piece, int player, int moveListLength, long allOccupancy, long otherOccupancy, boolean tactical) {
-        long rookBitboard = board0 & board1 & ~board2 & (-((1 ^ player) & 1) ^ board3);
+    private static int getRookMoves(long board0, long board1, long board2, long board3, long colorMask, long[] moves, int piece, int player, int moveListLength, long allOccupancy, long otherOccupancy, boolean tactical) {
+        long rookBitboard = board0 & board1 & ~board2 & colorMask;
         while(rookBitboard != 0L) {
             final int square = BitOps.lsb(rookBitboard);
             rookBitboard &= rookBitboard - 1;
@@ -197,8 +198,8 @@ public class Gen {
         return moveListLength;
     }
 
-    private static int getBishopMoves(long board0, long board1, long board2, long board3, long[] moves, int piece, int player, int moveListLength, long allOccupancy, long otherOccupancy, boolean tactical) {
-        long bishopBitboard = ~board0 & ~board1 & board2 & (-((1 ^ player) & 1) ^ board3);
+    private static int getBishopMoves(long board0, long board1, long board2, long board3, long colorMask, long[] moves, int piece, int player, int moveListLength, long allOccupancy, long otherOccupancy, boolean tactical) {
+        long bishopBitboard = ~board0 & ~board1 & board2 & colorMask;
         while(bishopBitboard != 0L) {
             final int square = BitOps.lsb(bishopBitboard);
             bishopBitboard &= bishopBitboard - 1;
