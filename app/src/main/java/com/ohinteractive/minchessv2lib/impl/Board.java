@@ -367,11 +367,10 @@ public class Board {
         final long board1 = board[1];
         final long board2 = board[2];
         final long board3 = board[3];
-        final int other = 1 ^ player;
-        final long colorMask = (-(other & 1) ^ board3);
-        final int square = BitOps.lsb(board0 & ~board1 & ~board2 & colorMask);
+        final long colorMask = (-(player & 1) ^ board3);
+        final int square = BitOps.lsb(board0 & ~board1 & ~board2 & ~colorMask);
         if((LEAP_ATTACKS[square] & board0 & ~board1 & board2 & colorMask) != 0L) return true;
-        if((PAWN_ATTACKS[other][square] & ~board0 & board1 & board2 & colorMask) != 0L) return true;
+        if((PAWN_ATTACKS[player][square] & ~board0 & board1 & board2 & colorMask) != 0L) return true;
         if((KING_ATTACKS[square] & board0 & ~board1 & ~board2 & colorMask) != 0L) return true;
         final long allOccupancy = board0 | board1| board2;
         if((Magic.bishopMoves(square, allOccupancy) & ~board0 & (board1 ^ board2) & colorMask) != 0L) return true;
@@ -380,11 +379,10 @@ public class Board {
     }
 
     public static boolean isPlayerInCheck(long board0, long board1, long board2, long board3, int player) {
-        final int other = 1 ^ player;
-        final long colorMask = (-(other & 1) ^ board3);
-        final int square = BitOps.lsb(board0 & ~board1 & ~board2 & colorMask);
+        final long colorMask = (-(player & 1) ^ board3);
+        final int square = BitOps.lsb(board0 & ~board1 & ~board2 & ~colorMask);
         if((LEAP_ATTACKS[square] & board0 & ~board1 & board2 & colorMask) != 0L) return true;
-        if((PAWN_ATTACKS[other][square] & ~board0 & board1 & board2 & colorMask) != 0L) return true;
+        if((PAWN_ATTACKS[player][square] & ~board0 & board1 & board2 & colorMask) != 0L) return true;
         if((KING_ATTACKS[square] & board0 & ~board1 & ~board2 & colorMask) != 0L) return true;
         final long allOccupancy = board0 | board1| board2;
         if((Magic.bishopMoves(square, allOccupancy) & ~board0 & (board1 ^ board2) & colorMask) != 0L) return true;
@@ -404,6 +402,10 @@ public class Board {
             boardString.append((piece != Value.NONE ? Piece.SHORT_STRING[piece] : ".")).append((i & 7) == 7 ? "\n" : " ");
         }
         return boardString.toString();
+    }
+
+    public static String squareToString(int square) {
+        return Value.FILE_STRING.charAt(square & Value.FILE) + Integer.toString((square >>> 3) + 1);
     }
 
     private static final long[] LEAP_ATTACKS = new long[64];
