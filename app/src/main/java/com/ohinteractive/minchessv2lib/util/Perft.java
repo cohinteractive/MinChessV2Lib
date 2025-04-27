@@ -1,5 +1,9 @@
 package com.ohinteractive.minchessv2lib.util;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.*;
+
 import com.ohinteractive.minchessv2lib.impl.Board;
 import com.ohinteractive.minchessv2lib.impl.Gen;
 
@@ -45,6 +49,7 @@ public class Perft {
     
     private static final boolean WAIT_BETWEEN_POSITIONS = true;
     private static final int WAIT_TIME_MS = 4000;
+    private static final int THREAD_COUNT = Runtime.getRuntime().availableProcessors();
 
     private static final String[] POSITION_NAMES = {
         "1. Initial position",
@@ -93,9 +98,19 @@ public class Perft {
     private static long perft(long[] board, int maxDepth) {
         long totalNodes = 0;
         int firstMoveCount = 0;
+        int player = (int) board[Board.STATUS] & 0x1;
         for(int depth = 1; depth <= maxDepth; depth ++) {
             long start = System.nanoTime();
-            long nodes = search(board, depth, maxDepth, firstMoveCount);
+            long nodes;
+            if(depth == maxDepth) {
+                try {
+                    nodes = parallelPerft(board, player, depth);
+                } catch(InterruptedException | ExecutionException e) {
+                    throw new RuntimeException("Parallel perft failed", e);
+                }
+            } else {
+                nodes = search(board, player, depth, maxDepth, firstMoveCount);
+            }
             long elapsedMs = (System.nanoTime() - start) / 1_000_000;
             System.out.printf("Depth %d/%d: %,d nodes in %d ms%n", depth, maxDepth, nodes, elapsedMs);
             if(depth == 1) firstMoveCount = (int) nodes;
@@ -108,28 +123,49 @@ public class Perft {
         return totalNodes;
     }
 
-    private static long search(long[] board, int depth, int maxDepth, int firstMoveCount) {
+    private static long parallelPerft(long[] board, int player, int depth) throws InterruptedException, ExecutionException {
+        long[] moves = Gen.gen(board, false, false);
+        int moveCount = (int) moves[Gen.MOVELIST_SIZE];
+        ExecutorService executor = Executors.newFixedThreadPool(THREAD_COUNT);
+        List<Future<Long>> futures = new ArrayList<>();
+        for(int i = 0; i < moveCount; i ++) {
+            final long move = moves[i];
+            futures.add(executor.submit(() -> {
+                long[] nextBoard = Board.makeMove(board, move);
+                if(Board.isPlayerInCheck(nextBoard, player)) return 0L;
+                return search(nextBoard, 1 ^ player, depth - 1, depth - 1, 0);
+            }));
+        }
+        long totalNodes = 0;
+        for(Future<Long> future : futures) {
+            totalNodes += future.get();
+        }
+        executor.shutdown();
+        executor.awaitTermination(1, TimeUnit.HOURS);
+        return totalNodes;
+    }
+
+    private static long search(long[] board, int player, int depth, int maxDepth, int firstMoveCount) {
         if(depth == 0) return 1;
         long nodes = 0;
         long[] moves = Gen.gen(board, false, false);
         int moveCount = (int) moves[Gen.MOVELIST_SIZE];
-        int player = (int) board[Board.STATUS] & Board.PLAYER_BIT;
-        int legalMoveIndex = 0;
+        //int legalMoveIndex = 0;
         for(int i = 0; i < moveCount; i ++) {
             long[] nextBoard = Board.makeMove(board, moves[i]);
             if(Board.isPlayerInCheck(nextBoard, player)) continue;
             if(depth == maxDepth) {
-                String moveString = Move.string(moves[i]);
-                System.out.printf(" %2d/%d %5s: ", ++ legalMoveIndex, firstMoveCount, moveString);
-                long start = System.nanoTime();
-                long moveNodes = search(nextBoard, depth - 1, maxDepth, firstMoveCount);
-                long elapsedMs = (System.nanoTime() - start) / 1_000_000;
-                System.out.printf("%,d nodes in %d ms%n", moveNodes, elapsedMs);
+                //String moveString = Move.string(moves[i]);
+                //System.out.printf(" %2d/%d %5s: ", ++ legalMoveIndex, firstMoveCount, moveString);
+                //long start = System.nanoTime();
+                long moveNodes = search(nextBoard, 1 ^ player, depth - 1, maxDepth, firstMoveCount);
+                //long elapsedMs = (System.nanoTime() - start) / 1_000_000;
+                //System.out.printf("%,d nodes in %d ms%n", moveNodes, elapsedMs);
                 nodes += moveNodes;
             } else if(depth == 1) {
                 nodes ++;
             } else {
-                nodes += search(nextBoard, depth - 1, maxDepth, firstMoveCount);
+                nodes += search(nextBoard, 1 ^ player, depth - 1, maxDepth, firstMoveCount);
             }
         }
         return nodes;
