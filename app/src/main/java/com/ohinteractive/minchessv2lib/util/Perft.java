@@ -150,19 +150,10 @@ public class Perft {
         long nodes = 0;
         long[] moves = Gen.gen(board, false, false);
         int moveCount = (int) moves[Gen.MOVELIST_SIZE];
-        //int legalMoveIndex = 0;
         for(int i = 0; i < moveCount; i ++) {
             long[] nextBoard = Board.makeMove(board, moves[i]);
             if(Board.isPlayerInCheck(nextBoard, player)) continue;
-            if(depth == maxDepth) {
-                //String moveString = Move.string(moves[i]);
-                //System.out.printf(" %2d/%d %5s: ", ++ legalMoveIndex, firstMoveCount, moveString);
-                //long start = System.nanoTime();
-                long moveNodes = search(nextBoard, 1 ^ player, depth - 1, maxDepth, firstMoveCount);
-                //long elapsedMs = (System.nanoTime() - start) / 1_000_000;
-                //System.out.printf("%,d nodes in %d ms%n", moveNodes, elapsedMs);
-                nodes += moveNodes;
-            } else if(depth == 1) {
+            if(depth == 1) {
                 nodes ++;
             } else {
                 nodes += search(nextBoard, 1 ^ player, depth - 1, maxDepth, firstMoveCount);
