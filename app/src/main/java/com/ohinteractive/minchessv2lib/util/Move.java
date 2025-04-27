@@ -12,6 +12,10 @@ public class Move {
     }
 
     public static String notation(long[] board, long move) {
+        final long board0 = board[0];
+        final long board1 = board[1];
+        final long board2 = board[2];
+        final long board3 = board[3];
         int startSquare = (int) move & Board.SQUARE_BITS;
         int startFile = startSquare & Value.FILE;
         int startRank = startSquare >>> 3;
@@ -19,12 +23,13 @@ public class Move {
         int targetFile = targetSquare & Value.FILE;
         int targetRank = targetSquare >>> 3;
         int startPiece = (int) move >>> Board.START_PIECE_SHIFT & Board.PIECE_BITS;
-        long pieceBitboard = board[startPiece];
-        int startType = startPiece & Piece.TYPE;
         int player = startPiece >>> 3;
+        final long colorMask = ~(-(player & 1) ^ board3);
+        long pieceBitboard = (-(startPiece & 1) & board0) & (-(startPiece >>> 1 & 1) & board1) & (-(startPiece >>> 2 & 1) & board2) & colorMask;
+        int startType = startPiece & Piece.TYPE;
         int targetPiece = (int) move >>> Board.TARGET_PIECE_SHIFT & Board.PIECE_BITS;
         int promotePiece = (int) move >>> Board.PROMOTE_PIECE_SHIFT & Board.PIECE_BITS;
-        long allOccupancy = board[Value.WHITE_BIT] | board[Value.BLACK_BIT];
+        long allOccupancy = board0 | board1 | board2;
         String notation = "";
         switch (startType) {
             case Piece.KING: {
