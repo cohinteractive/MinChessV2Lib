@@ -35,6 +35,7 @@ public class Perft {
     public static long runSinglePosition(String fen, int depth, long expectedNodes) {
         System.out.println("\"" + fen + "\"");
         long[] board = Board.fromFen(fen);
+        System.out.println(Board.boardString(board));
         long startTime = System.nanoTime();
         long nodes = perft(board, depth);
         long elapsedMs = (System.nanoTime() - startTime) / 1_000_000;
