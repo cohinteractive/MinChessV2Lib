@@ -427,15 +427,22 @@ public class Board {
 
     /*
      * How to use the 4 bitboard board:
-     * To get a bitboard for a general piece:
-     * long bitboard = (-(piece & 1) & board0) | (-(piece >>> 1 & 1) & board1) | (-(piece >>> 2 & 1) & board2) | (-(piece >>> 3 & 1) & board3);
+     * 
      * To get a bitboard for a specific piece, knowing type and color, we know which boards to touch, e.g. white king:
      * // white king is on board0 only, we need to remove all other board bits
      * long bitboard = board0 & ~board1 & ~board2 & ~board3;
+     * 
      * To get a bitboard for a specific piece type, not knowing color, we know which piece boards to touch, e.g. king, general color:
-     * // king is on board0, we need to remove all other board bits except board3, where we determine if it is there or not
-     * long bitboard = board0 & ~board1 & ~board2 & (-(color & 1) & board3);
-     * To
+     * // king is on board0, we need to remove all other board bits except board3, we also need a colorMask to
+     * // either use board3 (for black) or flip board3 (for white).
+     * // we get colorMask by inverting the colorBit, negating it and XORing board3
+     * long colorMask = (-((1 ^ color) & 1) ^ board3);
+     * long bitboard = board0 & ~board1 & ~board2 & colorMask;
+     * In one line we could do:
+     * long bitboard = board0 & ~board1 & ~board2 & (-((1 ^ color) & 1) ^ board3);
+     * 
+     * To get a bitboard for a general piece:
+     * long bitboard = (-(piece & 1) & board0) & (-(piece >>> 1 & 1) & board1) & (-(piece >>> 2 & 1) & board2) & (-((1 ^ (piece >>> 3)) & 1) ^ board3);
      */
     
 }
