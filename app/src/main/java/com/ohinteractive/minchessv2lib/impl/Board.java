@@ -368,7 +368,8 @@ public class Board {
         final long board2 = board[2];
         final long board3 = board[3];
         final long colorMask = (-(player & 1) ^ board3);
-        final int square = BitOps.lsb(board0 & ~board1 & ~board2 & ~colorMask);
+        final long bitboard = board0 & ~board1 & ~board2 & ~colorMask;
+        final int square = BitOps.LSB[(int) (((bitboard & -bitboard) * BitOps.DB) >>> 58)];
         if((LEAP_ATTACKS[square] & board0 & ~board1 & board2 & colorMask) != 0L) return true;
         if((PAWN_ATTACKS[player][square] & ~board0 & board1 & board2 & colorMask) != 0L) return true;
         if((KING_ATTACKS[square] & board0 & ~board1 & ~board2 & colorMask) != 0L) return true;
@@ -380,7 +381,8 @@ public class Board {
 
     public static boolean isPlayerInCheck(long board0, long board1, long board2, long board3, int player) {
         final long colorMask = (-(player & 1) ^ board3);
-        final int square = BitOps.lsb(board0 & ~board1 & ~board2 & ~colorMask);
+        final long bitboard = board0 & ~board1 & ~board2 & ~colorMask;
+        final int square = BitOps.LSB[(int) (((bitboard & -bitboard) * BitOps.DB) >>> 58)];
         if((LEAP_ATTACKS[square] & board0 & ~board1 & board2 & colorMask) != 0L) return true;
         if((PAWN_ATTACKS[player][square] & ~board0 & board1 & board2 & colorMask) != 0L) return true;
         if((KING_ATTACKS[square] & board0 & ~board1 & ~board2 & colorMask) != 0L) return true;
