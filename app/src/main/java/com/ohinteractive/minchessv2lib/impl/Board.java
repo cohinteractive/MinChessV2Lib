@@ -338,9 +338,8 @@ public class Board {
         final long board0 = board[0];
         final long board1 = board[1];
         final long board2 = board[2];
-        final long board3 = board[3];
         final int other = 1 ^ player;
-        final long colorMask = (-(other & 1) ^ board3);
+        final long colorMask = (-(other & 1) ^ board[3]);
         if((LEAP_ATTACKS[square] & board0 & ~board1 & board2 & colorMask) != 0L) return true;
         if((PAWN_ATTACKS[other][square] & ~board0 & board1 & board2 & colorMask) != 0L) return true;
         if((KING_ATTACKS[square] & board0 & ~board1 & ~board2 & colorMask) != 0L) return true;
@@ -366,8 +365,7 @@ public class Board {
         final long board0 = board[0];
         final long board1 = board[1];
         final long board2 = board[2];
-        final long board3 = board[3];
-        final long colorMask = (-(player & 1) ^ board3);
+        final long colorMask = (-(player & 1) ^ board[3]);
         final long bitboard = board0 & ~board1 & ~board2 & ~colorMask;
         final int square = BitOps.LSB[(int) (((bitboard & -bitboard) * BitOps.DB) >>> 58)];
         if((LEAP_ATTACKS[square] & board0 & ~board1 & board2 & colorMask) != 0L) return true;
@@ -392,8 +390,12 @@ public class Board {
         return false;
     }
 
-    public static void drawText(long[] board) {
-        System.out.println(boardString(board));
+    public static int countPiece(long[] board, int piece) {
+        return Long.bitCount(
+            (-(piece       & 1) & board[0]) & 
+            (-(piece >>> 1 & 1) & board[1]) & 
+            (-(piece >>> 2 & 1) & board[2]) & 
+            (-(piece >>> 3 & 1) & board[3]));
     }
 
     public static String boardString(long[] board) {
