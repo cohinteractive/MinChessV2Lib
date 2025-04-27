@@ -10,43 +10,68 @@ import com.ohinteractive.minchessv2lib.util.Value;
 
 public class Eval {
     
-    public static int eval(long[] board) {
-        final long key = board[Board.KEY];
+    public static int eval(long[] boardt) {
+        final long key = boardt[Board.KEY];
         final long t = table.probe(key).data();
         if(t != TTable.TYPE_INVALID) return (int) t;
-        final long status = board[Board.STATUS];
+        final long status = boardt[Board.STATUS];
         final int thisPlayer = (int) status & 0x1;
-        final long whiteKing = board[Piece.WHITE_KING];
-        final long whiteQueen = board[Piece.WHITE_QUEEN];
-        final long whiteRook = board[Piece.WHITE_ROOK];
-        final long whiteBishop = board[Piece.WHITE_BISHOP];
-        final long whiteKnight = board[Piece.WHITE_KNIGHT];
-        final long whitePawn = board[Piece.WHITE_PAWN];
-        final long blackKing = board[Piece.BLACK_KING];
-        final long blackQueen = board[Piece.BLACK_QUEEN];
-        final long blackRook = board[Piece.BLACK_ROOK];
-        final long blackBishop = board[Piece.BLACK_BISHOP];
-        final long blackKnight = board[Piece.BLACK_KNIGHT];
-        final long blackPawn = board[Piece.BLACK_PAWN];
-        final int phase = Math.max(0, Math.min(24 - ((Long.bitCount(board[Piece.WHITE_QUEEN]) + Long.bitCount(board[Piece.BLACK_QUEEN])) * 4 +
-            (Long.bitCount(board[Piece.WHITE_ROOK])  + Long.bitCount(board[Piece.BLACK_ROOK]))  * 2 +
-            Long.bitCount(board[Piece.WHITE_BISHOP]) + Long.bitCount(board[Piece.BLACK_BISHOP]) +
-            Long.bitCount(board[Piece.WHITE_KNIGHT]) + Long.bitCount(board[Piece.BLACK_KNIGHT])), 24));
+        final long board0 = boardt[0];
+        final long board1 = boardt[1];
+        final long board2 = boardt[2];
+        final long board3 = boardt[3];
+        final long whitePieceMask = ~board3;
+        final long blackPieceMask = board3;
+        final long whiteKing = board0 & ~board1 & ~board2 & whitePieceMask;
+        final long whiteQueen = ~board0 & board1 & ~board2 & whitePieceMask;
+        final long whiteRook = board0 & board1 & ~board2 & whitePieceMask;
+        final long whiteBishop = ~board0 & ~board1 & board2 & whitePieceMask;
+        final long whiteKnight = board0 & ~board1 & board2 & whitePieceMask;
+        final long whitePawn = ~board0 & board1 & board2 & whitePieceMask;
+        final int whiteQueenCount = Long.bitCount(whiteQueen);
+        final int whiteRookCount = Long.bitCount(whiteRook);
+        final int whiteBishopCount = Long.bitCount(whiteBishop);
+        final int whiteKnightCount = Long.bitCount(whiteKnight);
+        final long blackKing = board0 & ~board1 & ~board2 & blackPieceMask;
+        final long blackQueen = ~board0 & board1 & ~board2 & blackPieceMask;
+        final long blackRook = board0 & board1 & ~board2 & blackPieceMask;
+        final long blackBishop = ~board0 & ~board1 & board2 & blackPieceMask;
+        final long blackKnight = board0 & ~board1 & board2 & blackPieceMask;
+        final long blackPawn = ~board0 & board1 & board2 & blackPieceMask;
+        final int blackQueenCount = Long.bitCount(blackQueen);
+        final int blackRookCount = Long.bitCount(blackRook);
+        final int blackBishopCount = Long.bitCount(blackBishop);
+        final int blackKnightCount = Long.bitCount(blackKnight);
+        final int phase = Math.max(0, Math.min(24 - (
+            PHASE_VALUE[Piece.QUEEN ][whiteQueenCount  + blackQueenCount ] +
+            PHASE_VALUE[Piece.ROOK  ][whiteRookCount   + blackRookCount  ] +
+            PHASE_VALUE[Piece.BISHOP][whiteBishopCount + blackBishopCount] +
+            PHASE_VALUE[Piece.KNIGHT][whiteKnightCount + blackKnightCount]), 24));
         final int whiteKingSquare = BitOps.lsb(whiteKing);
         final int whiteKingRank = whiteKingSquare >>> 3;
         final int whiteKingFile = whiteKingSquare & 7;
+        final int[][] QUEEN_VALUES  = PIECE_VALUE[Piece.QUEEN];
+        final int[][] ROOK_VALUES   = PIECE_VALUE[Piece.ROOK];
+        final int[][] BISHOP_VALUES = PIECE_VALUE[Piece.BISHOP];
+        final int[][] KNIGHT_VALUES = PIECE_VALUE[Piece.KNIGHT];
         final int whitePieceMaterial =
-
-        final long whiteOccupancy = board[Value.WHITE_BIT];
+            QUEEN_VALUES [whiteQueenCount ][phase] +
+            ROOK_VALUES  [whiteRookCount  ][phase] +
+            BISHOP_VALUES[whiteBishopCount][phase] +
+            KNIGHT_VALUES[whiteKnightCount][phase];
+        final long allOccupancy = board0 | board1 | board2;
+        final long whiteOccupancy = allOccupancy & whitePieceMask;
         final long whiteBishopsKnights = whiteBishop | whiteKnight;
         final int blackKingSquare = BitOps.lsb(blackKing);
         final int blackKingRank = blackKingSquare >>> 3;
         final int blackKingFile = blackKingSquare & 7;
         final int blackPieceMaterial =
-
-        final long blackOccupancy = board[Value.BLACK_BIT];
+            QUEEN_VALUES [blackQueenCount ][phase] +
+            ROOK_VALUES  [blackRookCount  ][phase] +
+            BISHOP_VALUES[blackBishopCount][phase] +
+            KNIGHT_VALUES[blackKnightCount][phase];
+        final long blackOccupancy = allOccupancy & blackPieceMask;
         final long blackBishopsKnights = blackBishop | blackKnight;
-        final long allOccupancy = whiteOccupancy | blackOccupancy;
         final long lightSquares = LIGHT_SQUARES_BITBOARD;
         final int whiteQueenEvalAndSafety = queenEval(whiteQueen, phase, Value.WHITE, whiteBishop, whiteKnight, allOccupancy, whiteOccupancy, blackKingRank, blackKingFile, blackKingSquare);
         final int whiteRookEvalAndSafety = rookEval(whiteRook, phase, Value.WHITE, whiteKing, whitePawn, allOccupancy, whiteOccupancy, blackPawn, blackQueen, blackKingRank, blackKingFile, blackKingSquare);
@@ -166,6 +191,15 @@ public class Eval {
             }
         }
     }
+    private static final int[][] PHASE_VALUE = new int[7][19];
+    static {
+        for(int numPiece = 1; numPiece < 19; numPiece ++) {
+            PHASE_VALUE[Piece.QUEEN][numPiece] = numPiece * 4;
+            PHASE_VALUE[Piece.ROOK][numPiece] = numPiece * 2;
+            PHASE_VALUE[Piece.BISHOP][numPiece] = numPiece;
+            PHASE_VALUE[Piece.KNIGHT][numPiece] = numPiece;
+        }
+    }
     private static final int QUEEN_VALUE = PIECE_VALUE[Piece.QUEEN][1][24];
     private static final int[] BISHOP_VALUE = new int[25];
     static {
@@ -185,7 +219,7 @@ public class Eval {
             }
         }
     }
-    private static final int[][] PASSED_PAWN_RANK_BONUS = new int[2][7];
+    private static final int[][] PASSED_PAWN_RANK_BONUS = new int[2][8];
     static {
         for(int player = 0; player < 2; player ++) {
             for(int rank = 0; rank < 8; rank ++) {
