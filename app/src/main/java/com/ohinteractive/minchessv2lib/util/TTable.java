@@ -5,11 +5,23 @@ public class TTable {
     public record TEntry(long data, long hashMove) {}
 
     static final class StripeLock {
-        @SuppressWarnings("unused")
-        private volatile long p0, p1, p2, p3, p4, p5, p6;
+        /*
+         * Each StripeLock object has unused padding to separate it from other
+         * nearby StripeLock objects in memory to assist with cache-line collisions
+         * A cache-line collision means that two variables being worked on in
+         * separate threads might exist in the same cache-line, usually a
+         * 64 byte block, and they will get
+         * synchronized so only one can be worked on at a time.
+         * Adding padding means that each StripeLock has enough room not to be
+         * synchronized by the CPU and they are almost guaranteed to be able to
+         * work independently
+         */
 
         @SuppressWarnings("unused")
-        private volatile long p7, p8, p9, p10, p11, p12, p13;
+        private volatile long
+        p0, p1, p2, p3, p4, p5, p6,
+        p7, p8, p9, p10, p11, p12, p13;
+
     }
     
     public static final int TYPE_EVAL = -1;
@@ -35,6 +47,7 @@ public class TTable {
         for(int i = 0; i < STRIPE_COUNT; i ++) {
             locks[i] = new StripeLock();
         }
+        this.generation = 0;
     }
 
     public void advanceGeneration() {
@@ -81,6 +94,6 @@ public class TTable {
     private final long[] hashMove;
     private final StripeLock[] locks;
     private final int indexMask;
-    private int generation = 0;
+    private int generation;
 
 }
