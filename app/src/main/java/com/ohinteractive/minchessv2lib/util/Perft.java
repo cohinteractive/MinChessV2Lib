@@ -5,29 +5,60 @@ import com.ohinteractive.minchessv2lib.impl.Gen;
 
 public class Perft {
 
-    private final static String[] POSITION_NAME = {
-        "1. Initial position ",
-        "2.",
-        "3.",
-        "4.",
-        "5.",
-        "6.",
-        "7.",
-        "8. Enpassant capture gives check",
+    public static void runAll() {
+        runRange(0, POSITION_NAMES.length - 1);
+    }
+
+    public static void runRange(int start, int end) {
+        long totalElapsed = 0;
+        for(int i = start; i <= end; i ++) {
+            System.out.println(POSITION_NAMES[i]);
+            long elapsed = runSinglePosition(POSITION_FENS[i], DEPTHS[i], EXPECTED_NODES[i]);
+            totalElapsed += elapsed;
+            if(WAIT_BETWEEN_POSITIONS && i < end) {
+                sleep(WAIT_TIME_MS);
+            }
+        }
+        System.out.println("All positions complete.");
+        System.out.printf("Total elapsed: %,d ms%n", totalElapsed);
+    }
+
+    public static void runFen(String fen, int depth) {
+        long elapsed = runSinglePosition(fen, depth, 0);
+        System.out.printf("Total elapsed: %,d ms%n", elapsed);
+    }
+
+    public static long runSinglePosition(String fen, int depth, long expectedNodes) {
+        System.out.println("\"" + fen + "\"");
+        long[] board = Board.fromFen(fen);
+        long startTime = System.nanoTime();
+        long nodes = perft(board, depth);
+        long elapsedMs = (System.nanoTime() - startTime) / 1_000_000;
+        if(nodes == expectedNodes) {
+            System.out.println("Result: PASSED\n");
+        } else {
+            long diff = expectedNodes - nodes;
+            System.out.printf("Result: FAILED (expected %,d, got %,d, diff %,d)%m%n", expectedNodes, nodes, diff);
+        }
+        return elapsedMs;
+    }
+    
+    private static final boolean WAIT_BETWEEN_POSITIONS = true;
+    private static final int WAIT_TIME_MS = 4000;
+
+    private static final String[] POSITION_NAMES = {
+        "1. Initial position",
+        "2.", "3.", "4.", "5.", "6.", "7.",
+        "8. En passant capture gives check",
         "9. Short castling gives check",
         "10. Long castling gives check",
-        "11. Castling",
-        "12. Castling prevented",
-        "13. Promote out of check",
-        "14. Discovered check",
-        "15. Promotion gives check",
-        "16. Underpromotion gives check",
-        "17. Self stalemate",
-        "18. Stalemate/Checkmate",
+        "11. Castling", "12. Castling prevented",
+        "13. Promote out of check", "14. Discovered check",
+        "15. Promotion gives check", "16. Underpromotion gives check",
+        "17. Self stalemate", "18. Stalemate/Checkmate",
         "19. Double check"
     };
-
-    private final static String[] POSITION_FEN = {
+    private static final String[] POSITION_FENS = {
         "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
         "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
         "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1",
@@ -48,111 +79,66 @@ public class Perft {
         "8/k1P5/8/1K6/8/8/8/8 w - - 0 1",
         "8/8/2k5/5q2/5n2/8/5K2/8 b - - 0 1"
     };
-
-    private final static long[] POSITION_PERFT_VALUE = {
-        119060324,193690690,178633661,706045033,53392,6923051137L,824064,
-        1440467,661072,803711,1274206,1720476,3821001,1004658,217342,
-        92683,2217,567584,23527
+    private static final long[] EXPECTED_NODES = {
+        119060324, 193690690, 178633661, 706045033, 53392, 6923051137L, 824064,
+        1440467, 661072, 803711, 1274206, 1720476, 3821001, 1004658, 217342,
+        92683, 2217, 567584, 23527
     };
-
-    public final static int[] POSITION_PERFT_DEPTH = {
-            6,5,7,6,3,6,6,6,6,6,4,4,6,5,6,6,6,7,4
+    private static final int[] DEPTHS = {
+        6, 5, 7, 6, 3, 6, 6, 6, 6, 6, 4, 4, 6, 5, 6, 6, 6, 7, 4
     };
-
-    private static long elapsedTime;
 
     private Perft() {}
 
-    public final static void all() {
-        some(0, POSITION_NAME.length - 1);
-    }
-
-    public final static long some(int firstPosition, int lastPosition) {
-        elapsedTime = 0;
-        long totalTime = 0;
-        for(int positionNumber = firstPosition; positionNumber <= lastPosition; positionNumber ++) {
-            println(POSITION_NAME[positionNumber]);
-            long thisPositionTotal = fen(POSITION_FEN[positionNumber], POSITION_PERFT_DEPTH[positionNumber]);
-            totalTime += elapsedTime;
-            if(thisPositionTotal == POSITION_PERFT_VALUE[positionNumber]) {
-                println("Passed\n");
-            } else {
-                println("Failed ( " + POSITION_PERFT_VALUE[positionNumber] + " ( " + (POSITION_PERFT_VALUE[positionNumber] - thisPositionTotal) + " ) )\n");
-            }
-            if(positionNumber < lastPosition) {
-                try {
-                    Thread.sleep(4000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-        println("Done\n");
-        return totalTime;
-    }
-
-    public final static long fen(String fen, int depth) {
-        long[] board = Board.fromFen(fen);
-        println("\"" + fen + "\"");
-        Board.drawText(board);
-        return perftPositionSpeed(board, depth);
-    }
-
-    private final static long perftPositionSpeed(long[] board, int maxDepth) {
-        int maxNum = 0;
-        long currentTime = 0L;
-        long nodes = 0L;
-        long total = 0L;
+    private static long perft(long[] board, int maxDepth) {
+        long totalNodes = 0;
+        int firstMoveCount = 0;
         for(int depth = 1; depth <= maxDepth; depth ++) {
-            currentTime = System.currentTimeMillis();
-            nodes = perftSearchSpeed(board, depth, maxDepth, maxNum);
-            elapsedTime = System.currentTimeMillis() - currentTime;
-            println("Positions for depth " + depth + "/" + maxDepth + " = " + nodes + " Elapsed: " + (elapsedTime));
-            if(depth == 1) {
-                maxNum = (int) nodes;
-            }
+            long start = System.nanoTime();
+            long nodes = search(board, depth, maxDepth, firstMoveCount);
+            long elapsedMs = (System.nanoTime() - start) / 1_000_000;
+            System.out.printf("Depth %d/%d: %,d nodes in %d ms%n", depth, maxDepth, nodes, elapsedMs);
+            if(depth == 1) firstMoveCount = (int) nodes;
             if(depth == maxDepth) {
-                double nodesPerSecond = elapsedTime == 0 ? nodes : nodes / elapsedTime;
-                println("Nodes per second: " + nodesPerSecond + " mil");
-                total = nodes;
+                double nodesPerSecond = elapsedMs == 0 ? nodes : (nodes * 1000.0) / elapsedMs;
+                System.out.printf("Nodes per second: %,.2f%n", nodesPerSecond);
+                totalNodes = nodes;
             }
         }
-        return total;
+        return totalNodes;
     }
 
-    private final static long perftSearchSpeed(long[] board, int depth, int maxDepth, int maxNum) {
+    private static long search(long[] board, int depth, int maxDepth, int firstMoveCount) {
         if(depth == 0) return 1;
-        long nodes = 0L;
-        long tempNodes = 0L;
+        long nodes = 0;
         long[] moves = Gen.gen(board, false, false);
-        int maxMoves = (int) moves[99];
+        int moveCount = (int) moves[Gen.MOVELIST_SIZE];
         int player = (int) board[Board.STATUS] & Board.PLAYER_BIT;
-        int legalMoveNum = 0;
-        String moveString = "";
-        long currentTime = 0L;
-        for(int move = 0; move < maxMoves; move ++) {
-            long[] boardAfterMove = Board.makeMove(board, moves[move]);
-            if(Board.isPlayerInCheck(boardAfterMove, player)) continue;
+        int legalMoveIndex = 0;
+        for(int i = 0; i < moveCount; i ++) {
+            long[] nextBoard = Board.makeMove(board, moves[i]);
+            if(Board.isPlayerInCheck(nextBoard, player)) continue;
             if(depth == maxDepth) {
-                moveString = Move.string(moves[move]);
-                print(" " + ((++ legalMoveNum <= 9) ? " " : "") + legalMoveNum + "/" + maxNum + " " + (moveString.length() == 4 ? " " : "") + moveString + ": ");
-            }
-            tempNodes = nodes;
-            currentTime = System.currentTimeMillis();
-            nodes += perftSearchSpeed(boardAfterMove, depth - 1, maxDepth, maxNum);
-            if(depth == maxDepth) {
-                println("" + (nodes - tempNodes) + "   Elapsed: " + (System.currentTimeMillis() - currentTime));
+                String moveString = Move.string(moves[i]);
+                System.out.printf(" %2d/%d %5s: ", ++ legalMoveIndex, firstMoveCount, moveString);
+                long start = System.nanoTime();
+                long moveNodes = search(nextBoard, depth - 1, maxDepth, firstMoveCount);
+                long elapsedMs = (System.nanoTime() - start) / 1_000_000;
+                System.out.printf("%,d nodes in %d ms%n", moveNodes, elapsedMs);
+                nodes += moveNodes;
+            } else if(depth == 1) {
+                nodes ++;
+            } else {
+                nodes += search(nextBoard, depth - 1, maxDepth, firstMoveCount);
             }
         }
         return nodes;
     }
 
-    private static void println(Object text) {
-        print(text + "\n");
-    }
-
-    private static void print(Object text) {
-        System.out.print(text);
+    private static void sleep(int millis) {
+        try {
+            Thread.sleep(millis);
+        } catch(InterruptedException ignored) {}
     }
 
 }
