@@ -28,7 +28,8 @@ public class TTable {
     public static final int TYPE_EXACT = 0;
     public static final int TYPE_LOWER = 1;
     public static final int TYPE_UPPER = 2;
-    public static final TEntry NULL_ENTRY = new TEntry(Long.MIN_VALUE, 0L);
+    public static final long TYPE_INVALID = Long.MIN_VALUE;
+    public static final TEntry NULL_ENTRY = new TEntry(TYPE_INVALID, 0L);
 
     public TTable() {
         this(DEFAULT_TABLE_SIZE_IN_MB);
@@ -85,7 +86,7 @@ public class TTable {
         }
     }
 
-    private static final int DEFAULT_TABLE_SIZE_IN_MB = 96;
+    private static final int DEFAULT_TABLE_SIZE_IN_MB = 192;
     private static final int STRIPE_COUNT = 32;
     private static final int STRIPE_MASK = STRIPE_COUNT - 1;
 
