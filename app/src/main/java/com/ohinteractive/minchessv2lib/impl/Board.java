@@ -142,8 +142,8 @@ public class Board {
     public static final int BLACK_CASTLING_BITS = BLACK_KINGSIDE_BIT | BLACK_QUEENSIDE_BIT;
 
     public static long[] makeMove(long[] board, long move) {
-        long[] newBoard = new long[board.length];
-        System.arraycopy(board, 0, newBoard, 0, board.length);
+        long[] newBoard = new long[MAX_BITBOARDS];
+        System.arraycopy(board, 0, newBoard, 0, MAX_BITBOARDS);
         int status = (int) newBoard[STATUS];
         int castling = status >>> CASTLING_SHIFT & CASTLING_BITS;
         int eSquare = enPassantSquare(newBoard);
