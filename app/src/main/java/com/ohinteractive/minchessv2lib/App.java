@@ -1,14 +1,21 @@
 package com.ohinteractive.minchessv2lib;
 
 import com.ohinteractive.minchessv2lib.impl.Board;
+import com.ohinteractive.minchessv2lib.util.Perft;
 
 public class App {
     
     public static void main(String[] args) {
-        //String fen =
-        //"k7/8/8/8/8/8/8/K7 w - - 0 1";
-        long[] board = Board.startingPosition();
-        Board.drawText(board);
+        Perft.runAll();
+    }
+
+    public static void draw(long[] board) {
+        System.out.println(Board.boardString(board) + "\n");
+        try {
+            Thread.sleep(1000);
+        } catch(InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
 }
