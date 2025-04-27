@@ -91,12 +91,12 @@ public class Crit {
 
     public static final int[][][][] BONUS = new int[7][2][64][25];
     static {
-        loadBonus("lib/bonus.properties");
+        loadBonus("bonus.properties");
     }
 
     public static final int[][] MATERIAL = new int[7][25];
     static {
-        loadMaterial("lib/material.properties");
+        loadMaterial("material.properties");
     }
 
     public static final Object[] VALUE = new Object[MAX_CRITERIA];
@@ -139,7 +139,7 @@ public class Crit {
         VALUE[BISHOP_PROTECTOR] = new int[15][25];
         VALUE[KNIGHT_PAWN] = new int[3][9][25];
         VALUE[KNIGHT_PROTECTOR] = new int[15][25];
-        loadCrit("lib/crit.properties");
+        loadCrit("crit.properties");
     }
     
     private Crit() {}
