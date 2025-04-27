@@ -340,51 +340,55 @@ public class Board {
         final long board2 = board[2];
         final long board3 = board[3];
         final int other = 1 ^ player;
-        if((LEAP_ATTACKS[square] & (board0 | board2) & (-(other & 1) ^ board3)) != 0L) return true;
-        if((PAWN_ATTACKS[other][square] & (board1 | board2) & (-(other & 1) ^ board3)) != 0L) return true;
-        if((KING_ATTACKS[square] & board0 & (-(other & 1) ^ board3)) != 0L) return true;
+        final long colorMask = (-(other & 1) ^ board3);
+        if((LEAP_ATTACKS[square] & board0 & ~board1 & board2 & colorMask) != 0L) return true;
+        if((PAWN_ATTACKS[other][square] & ~board0 & board1 & board2 & colorMask) != 0L) return true;
+        if((KING_ATTACKS[square] & board0 & ~board1 & ~board2 & colorMask) != 0L) return true;
         final long allOccupancy = board0 | board1| board2;
-        if((Magic.bishopMoves(square, allOccupancy) & (( board2           & (-(other & 1) ^ board3)) | (board1 & (-(other & 1) ^ board3)))) != 0L) return true;
-        if((Magic.rookMoves  (square, allOccupancy) & (((board0 | board1) & (-(other & 1) ^ board3)) | (board1 & (-(other & 1) ^ board3)))) != 0L) return true;
+        if((Magic.bishopMoves(square, allOccupancy) & ~board0 & (board1 ^ board2) & colorMask) != 0L) return true;
+        if((Magic.rookMoves  (square, allOccupancy) & board1 & ~board2 & colorMask) != 0L) return true;
         return false;
     }
 
     public static boolean isSquareAttackedByPlayer(long board0, long board1, long board2, long board3, int square, int player) {
         final int other = 1 ^ player;
-        if((LEAP_ATTACKS[square] & (board0 | board2) & (-(other & 1) ^ board3)) != 0L) return true;
-        if((PAWN_ATTACKS[other][square] & (board1 | board2) & (-(other & 1) ^ board3)) != 0L) return true;
-        if((KING_ATTACKS[square] & board0 & (-(other & 1) ^ board3)) != 0L) return true;
+        final long colorMask = (-(other & 1) ^ board3);
+        if((LEAP_ATTACKS[square] & board0 & ~board1 & board2 & colorMask) != 0L) return true;
+        if((PAWN_ATTACKS[other][square] & ~board0 & board1 & board2 & colorMask) != 0L) return true;
+        if((KING_ATTACKS[square] & board0 & ~board1 & ~board2 & colorMask) != 0L) return true;
         final long allOccupancy = board0 | board1| board2;
-        if((Magic.bishopMoves(square, allOccupancy) & (( board2           & (-(other & 1) ^ board3)) | (board1 & (-(other & 1) ^ board3)))) != 0L) return true;
-        if((Magic.rookMoves  (square, allOccupancy) & (((board0 | board1) & (-(other & 1) ^ board3)) | (board1 & (-(other & 1) ^ board3)))) != 0L) return true;
+        if((Magic.bishopMoves(square, allOccupancy) & ~board0 & (board1 ^ board2) & colorMask) != 0L) return true;
+        if((Magic.rookMoves  (square, allOccupancy) & board1 & ~board2 & colorMask) != 0L) return true;
         return false;
     }
-
+    
     public static boolean isPlayerInCheck(long[] board, int player) {
         final long board0 = board[0];
         final long board1 = board[1];
         final long board2 = board[2];
         final long board3 = board[3];
         final int other = 1 ^ player;
-        final int square = BitOps.lsb(board0 & (-(other & 1) ^ board3));
-        if((LEAP_ATTACKS[square] & (board0 | board2) & (-(other & 1) ^ board3)) != 0L) return true;
-        if((PAWN_ATTACKS[other][square] & (board1 | board2) & (-(other & 1) ^ board3)) != 0L) return true;
-        if((KING_ATTACKS[square] & board0 & (-(other & 1) ^ board3)) != 0L) return true;
+        final long colorMask = (-(other & 1) ^ board3);
+        final int square = BitOps.lsb(board0 & ~board1 & ~board2 & colorMask);
+        if((LEAP_ATTACKS[square] & board0 & ~board1 & board2 & colorMask) != 0L) return true;
+        if((PAWN_ATTACKS[other][square] & ~board0 & board1 & board2 & colorMask) != 0L) return true;
+        if((KING_ATTACKS[square] & board0 & ~board1 & ~board2 & colorMask) != 0L) return true;
         final long allOccupancy = board0 | board1| board2;
-        if((Magic.bishopMoves(square, allOccupancy) & (( board2           & (-(other & 1) ^ board3)) | (board1 & (-(other & 1) ^ board3)))) != 0L) return true;
-        if((Magic.rookMoves  (square, allOccupancy) & (((board0 | board1) & (-(other & 1) ^ board3)) | (board1 & (-(other & 1) ^ board3)))) != 0L) return true;
+        if((Magic.bishopMoves(square, allOccupancy) & ~board0 & (board1 ^ board2) & colorMask) != 0L) return true;
+        if((Magic.rookMoves  (square, allOccupancy) & board1 & ~board2 & colorMask) != 0L) return true;
         return false;
     }
 
     public static boolean isPlayerInCheck(long board0, long board1, long board2, long board3, int player) {
         final int other = 1 ^ player;
-        final int square = BitOps.lsb(board0 & (-(other & 1) ^ board3));
-        if((LEAP_ATTACKS[square] & (board0 | board2) & (-(other & 1) ^ board3)) != 0L) return true;
-        if((PAWN_ATTACKS[other][square] & (board1 | board2) & (-(other & 1) ^ board3)) != 0L) return true;
-        if((KING_ATTACKS[square] & board0 & (-(other & 1) ^ board3)) != 0L) return true;
+        final long colorMask = (-(other & 1) ^ board3);
+        final int square = BitOps.lsb(board0 & ~board1 & ~board2 & colorMask);
+        if((LEAP_ATTACKS[square] & board0 & ~board1 & board2 & colorMask) != 0L) return true;
+        if((PAWN_ATTACKS[other][square] & ~board0 & board1 & board2 & colorMask) != 0L) return true;
+        if((KING_ATTACKS[square] & board0 & ~board1 & ~board2 & colorMask) != 0L) return true;
         final long allOccupancy = board0 | board1| board2;
-        if((Magic.bishopMoves(square, allOccupancy) & (( board2           & (-(other & 1) ^ board3)) | (board1 & (-(other & 1) ^ board3)))) != 0L) return true;
-        if((Magic.rookMoves  (square, allOccupancy) & (((board0 | board1) & (-(other & 1) ^ board3)) | (board1 & (-(other & 1) ^ board3)))) != 0L) return true;
+        if((Magic.bishopMoves(square, allOccupancy) & ~board0 & (board1 ^ board2) & colorMask) != 0L) return true;
+        if((Magic.rookMoves  (square, allOccupancy) & board1 & ~board2 & colorMask) != 0L) return true;
         return false;
     }
 
