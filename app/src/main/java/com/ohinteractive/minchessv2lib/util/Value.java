@@ -12,6 +12,7 @@ public class Value {
 	public final static int[] KINGSIDE_BIT = { 1, 4 };
 	public final static int[] QUEENSIDE_BIT = { 2, 8 };
 	public final static int FILE = 7;
+	public final static int RANK_SHIFT = 3;
 	public final static int FILE_A = 0;
 	public final static int FILE_B = 1;
 	public final static int FILE_C = 2;
