@@ -450,7 +450,7 @@ public class Eval {
             // other king distance
             eval += QUEEN_ENEMY_KING_DISTANCE[Math.abs((square >>> 3) - otherKingRank) + Math.abs((square & 7) - otherKingFile)][phase];
             // other king safety
-            safety = QUEEN_AFFECTS_KING_SAFETY[Long.bitCount(queenAttacks & KING_RING[1 ^ player][otherKingSquare])];
+            safety += QUEEN_AFFECTS_KING_SAFETY[Long.bitCount(queenAttacks & KING_RING[1 ^ player][otherKingSquare])];
         }
         return (eval << 8) | (safety & 0xff);
     }
@@ -484,7 +484,7 @@ public class Eval {
             // other king distance
             eval += ROOK_ENEMY_KING_DISTANCE[Math.abs((square >>> 3) - otherKingRank) + Math.abs(rookFile - otherKingFile)][phase];
             // other king safety
-            safety = QUEEN_AFFECTS_KING_SAFETY[Long.bitCount(rookAttacks & KING_RING[1 ^ player][otherKingSquare])];
+            safety += ROOK_AFFECTS_KING_SAFETY[Long.bitCount(rookAttacks & KING_RING[1 ^ player][otherKingSquare])];
         }
         return (eval << 8) | (safety & 0xff);
     }
@@ -519,7 +519,7 @@ public class Eval {
             // other king distance
             eval += BISHOP_ENEMY_KING_DISTANCE[Math.abs(bishopRank - otherKingRank) + Math.abs(bishopFile - otherKingFile)][phase];
             // other king safety
-            safety = QUEEN_AFFECTS_KING_SAFETY[Long.bitCount(bishopAttacks & KING_RING[1 ^ player][otherKingSquare])];
+            safety += BISHOP_AFFECTS_KING_SAFETY[Long.bitCount(bishopAttacks & KING_RING[1 ^ player][otherKingSquare])];
         }
         return (eval << 8) | (safety & 0xff);
     }
@@ -554,7 +554,7 @@ public class Eval {
             // other king distance
             eval += KNIGHT_ENEMY_KING_DISTANCE[Math.abs(knightRank - otherKingRank) + Math.abs(knightFile - otherKingFile)][phase];
             // other king safety
-            safety = QUEEN_AFFECTS_KING_SAFETY[Long.bitCount(knightAttacks & KING_RING[1 ^ player][otherKingSquare])];
+            safety += KNIGHT_AFFECTS_KING_SAFETY[Long.bitCount(knightAttacks & KING_RING[1 ^ player][otherKingSquare])];
         }
         return (eval << 8) | (safety & 0xff);
     }
@@ -573,7 +573,7 @@ public class Eval {
             // doubled pawns
             final int pawnFile = square & 7;
             final long pawnFileBitboard = FILE_BITBOARD[pawnFile];
-            if(Long.bitCount(bitboard & pawnFileBitboard) > 1) eval += DOUBLED_PAWN[phase];
+            if(Long.bitCount(originalBitboard & pawnFileBitboard) > 1) eval += DOUBLED_PAWN[phase];
             // weak pawn
             final int pawnRank = square >>> 3;
             final long adjacentFilesBitboard = (pawnFile > 0 ? FILE_BITBOARD[pawnFile - 1] : 0L) | (pawnFile < 7 ? FILE_BITBOARD[pawnFile + 1] : 0L);
