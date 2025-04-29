@@ -41,8 +41,9 @@ public class Eval {
             PHASE_VALUE[Piece.ROOK  ][whiteRookCount   + blackRookCount  ] +
             PHASE_VALUE[Piece.BISHOP][whiteBishopCount + blackBishopCount] +
             PHASE_VALUE[Piece.KNIGHT][whiteKnightCount + blackKnightCount]);
+        final int p0 = (p & ~(p >> 31));
         // Clamp phase to [0, MAX_PHASE] branchlessly for faster eval
-        final int phase = (((p & ~(p >> 31)) - MAX_PHASE) >> 31 & (p & ~(p >> 31))) | (MAX_PHASE & ~(((p & ~(p >> 31)) - MAX_PHASE) >> 31));
+        final int phase = ((p0 - MAX_PHASE) >> 31 & p0) | (MAX_PHASE & ~((p0 - MAX_PHASE) >> 31));
         final int whiteKingSquare = BitOps.lsb(whiteKing);
         final int whiteKingRank = whiteKingSquare >>> Value.RANK_SHIFT;
         final int whiteKingFile = whiteKingSquare & Value.FILE;
@@ -71,8 +72,8 @@ public class Eval {
         final long lightSquares = LIGHT_SQUARES_BITBOARD;
         final int whiteQueenEvalAndSafety = queenEval(whiteQueen, phase, Value.WHITE, whiteBishop, whiteKnight, allOccupancy, whiteOccupancy, blackKingRank, blackKingFile, blackKingSquare);
         final int whiteRookEvalAndSafety = rookEval(whiteRook, phase, Value.WHITE, whiteKing, whitePawn, allOccupancy, whiteOccupancy, blackPawn, blackQueen, blackKingRank, blackKingFile, blackKingSquare);
-        final int whiteBishopEvalAndSafety = bishopEval(whiteBishop, phase, Value.WHITE, allOccupancy, whiteOccupancy, whitePawn, blackPawn, lightSquares, whiteKingRank, whiteKingFile, blackKingRank, blackKingFile, blackKingSquare);
-        final int whiteKnightEvalAndSafety = knightEval(whiteKnight, phase, whitePawn, Value.WHITE, whiteOccupancy, blackPawn, whiteKingRank, whiteKingFile, blackKingRank, blackKingFile, blackKingSquare);
+        final int whiteBishopEvalAndSafety = bishopEval(whiteBishop, phase, Value.WHITE, Value.BLACK, allOccupancy, whiteOccupancy, whitePawn, blackPawn, lightSquares, whiteKingRank, whiteKingFile, blackKingRank, blackKingFile, blackKingSquare);
+        final int whiteKnightEvalAndSafety = knightEval(whiteKnight, phase, whitePawn, Value.WHITE, Value.BLACK, whiteOccupancy, blackPawn, whiteKingRank, whiteKingFile, blackKingRank, blackKingFile, blackKingSquare);
         int whiteEval =
         kingEval(Value.WHITE, whiteKingSquare, phase, whiteKingRank, whiteKingFile, whiteRook, whitePawn, blackPawn, whitePieceMaterial, blackPieceMaterial, blackKingFile, blackKingRank) +
         (whiteQueenEvalAndSafety >> EVAL_SHIFT) +
@@ -82,8 +83,8 @@ public class Eval {
         pawnEval(whitePawn, phase, Value.WHITE, whiteBishopsKnights, blackPawn, whitePieceMaterial, whiteKingRank, whiteKingFile, blackKingRank, blackKingFile, blackPieceMaterial, thisPlayer, whiteKing);
         final int blackQueenEvalAndSafety = queenEval(blackQueen, phase, Value.BLACK, blackBishop, blackKnight, allOccupancy, blackOccupancy, whiteKingRank, whiteKingFile, whiteKingSquare);
         final int blackRookEvalAndSafety = rookEval(blackRook, phase, Value.BLACK, blackKing, blackPawn, allOccupancy, blackOccupancy, whitePawn, whiteQueen, whiteKingRank, whiteKingFile, whiteKingSquare);
-        final int blackBishopEvalAndSafety = bishopEval(blackBishop, phase, Value.BLACK, allOccupancy, blackOccupancy, blackPawn, whitePawn, lightSquares, blackKingRank, blackKingFile, whiteKingRank, whiteKingFile, whiteKingSquare);
-        final int blackKnightEvalAndSafety = knightEval(blackKnight, phase, blackPawn, Value.BLACK, blackOccupancy, whitePawn, blackKingRank, blackKingFile, whiteKingRank, whiteKingFile, whiteKingSquare);
+        final int blackBishopEvalAndSafety = bishopEval(blackBishop, phase, Value.BLACK, Value.WHITE, allOccupancy, blackOccupancy, blackPawn, whitePawn, lightSquares, blackKingRank, blackKingFile, whiteKingRank, whiteKingFile, whiteKingSquare);
+        final int blackKnightEvalAndSafety = knightEval(blackKnight, phase, blackPawn, Value.BLACK, Value.WHITE, blackOccupancy, whitePawn, blackKingRank, blackKingFile, whiteKingRank, whiteKingFile, whiteKingSquare);
         int blackEval =
         kingEval(Value.BLACK, blackKingSquare, phase, blackKingRank, blackKingFile, blackRook, blackPawn, whitePawn, blackPieceMaterial, whitePieceMaterial, whiteKingFile, whiteKingRank) +
         (blackQueenEvalAndSafety >> EVAL_SHIFT) +
@@ -421,8 +422,16 @@ public class Eval {
         }
         // king distance
         if(pieceMaterial > otherPieceMaterial && pieceMaterial <= Piece.VALUE[Piece.QUEEN]) {
-            final int opponentKingDistanceFromCenter = Math.abs(otherKingFile - CENTRE_FILE) + Math.abs(otherKingRank - CENTRE_RANK);
-            final int kingDistance = Math.abs(kingFile - otherKingFile) + Math.abs(kingRank - otherKingRank);
+            final int otherFileDist = otherKingFile - CENTRE_FILE;
+            final int otherFileDistSign = otherFileDist >> 31;
+            final int otherRankDist = otherKingRank - CENTRE_RANK;
+            final int otherRankDistSign = otherRankDist >> 31;
+            final int opponentKingDistanceFromCenter = (otherFileDist ^ otherFileDistSign) - otherFileDistSign + (otherRankDist ^ otherRankDistSign) - otherRankDistSign;
+            final int fileDist = kingFile - otherKingFile;
+            final int fileDistSign = fileDist >> 31;
+            final int rankDist = kingRank - otherKingRank;
+            final int rankDistSign = rankDist >> 31;
+            final int kingDistance = (fileDist ^ fileDistSign) - fileDistSign + (rankDist ^ rankDistSign) - rankDistSign;
             final int opponentKingEdgePenalty = opponentKingDistanceFromCenter * EDGE_WEIGHT;
             final int kingProximityBonus = (14 - kingDistance) * PROXIMITY_WEIGHT;
             eval += ((opponentKingEdgePenalty + kingProximityBonus) * (MAX_PHASE - phase)) / MAX_PHASE;
@@ -436,21 +445,31 @@ public class Eval {
         int safety = 0;
         // early development
         if((bitboard & Bitboard.BB[Bitboard.QUEEN_START_POSITION_PLAYER0 + player][0]) == 0L &&
-            (bishopBitboard & Bitboard.BB[Bitboard.BISHOP_START_POSITION_PLAYER0 + player][0]) != 0L &&
-            (knightBitboard & Bitboard.BB[Bitboard.KNIGHT_START_POSITION_PLAYER0 + player][0]) != 0L) eval += QUEEN_EARLY_DEVELOPMENT[phase];
+           (bishopBitboard & Bitboard.BB[Bitboard.BISHOP_START_POSITION_PLAYER0 + player][0]) != 0L &&
+           (knightBitboard & Bitboard.BB[Bitboard.KNIGHT_START_POSITION_PLAYER0 + player][0]) != 0L) eval += QUEEN_EARLY_DEVELOPMENT[phase];
+        // cache arrays for faster access inside loop
+        final int[][] QUEEN_BONUS = BONUS[Piece.QUEEN][player];
+        final int[][] QUEEN_MOBILITY = MOBILITY_QUEEN;
+        final int[][] QUEEN_DISTANCE = QUEEN_ENEMY_KING_DISTANCE;
+        final int[] QUEEN_SAFETY = QUEEN_AFFECTS_KING_SAFETY;
+        final long[] KING_RING_BITBOARD = KING_RING[1 ^ player];
         // loop over queens
         while(bitboard != 0L) {
             final int square = BitOps.lsb(bitboard);
             bitboard &= bitboard - 1;
             // piece square bonus
-            eval += BONUS[Piece.QUEEN][player][square][phase];
+            eval += QUEEN_BONUS[square][phase];
             // mobility
             final long queenAttacks = Magic.queenMoves(square, allOccupancy) & ~occupancy;
-            eval += MOBILITY_QUEEN[Long.bitCount(queenAttacks)][phase];
+            eval += QUEEN_MOBILITY[Long.bitCount(queenAttacks)][phase];
             // other king distance
-            eval += QUEEN_ENEMY_KING_DISTANCE[Math.abs((square >>> 3) - otherKingRank) + Math.abs((square & 7) - otherKingFile)][phase];
+            final int fileDist = (square & 7) - otherKingFile;
+            final int fileDistSign = fileDist >> 31;
+            final int rankDist = (square >>> 3) - otherKingRank;
+            final int rankDistSign = rankDist >> 31;
+            eval += QUEEN_DISTANCE[(fileDist ^ fileDistSign) - fileDistSign + (rankDist ^ rankDistSign) - rankDistSign][phase];
             // other king safety
-            safety += QUEEN_AFFECTS_KING_SAFETY[Long.bitCount(queenAttacks & KING_RING[1 ^ player][otherKingSquare])];
+            safety += QUEEN_SAFETY[Long.bitCount(queenAttacks & KING_RING_BITBOARD[otherKingSquare])];
         }
         return (eval << 8) | (safety & 0xff);
     }
@@ -467,64 +486,97 @@ public class Eval {
         // rooks and pawns
         final int numPawns = Long.bitCount(pawnBitboard);
         eval += ROOK_PAWN[numRooks > 2 ? 2 : numRooks][numPawns > 8 ? 8 : numPawns][phase];
+        // cache arrays for faster access inside loop
+        final int[][] ROOK_BONUS = BONUS[Piece.ROOK][player];
+        final int[][] ROOK_MOBILITY = MOBILITY_ROOK;
+        final long[] FILE = FILE_BITBOARD;
+        final int OPEN_FILE = ROOK_OPEN_FILE[phase];
+        final int ROOK_QUEEN_FILE = ROOK_ON_QUEEN_FILE[phase];
+        final int[][] ROOK_DISTANCE = ROOK_ENEMY_KING_DISTANCE;
+        final int[] ROOK_SAFETY = ROOK_AFFECTS_KING_SAFETY;
+        final long[] KING_RING_BITBOARD = KING_RING[1 ^ player];
         // loop over rooks
         while(bitboard != 0L) {
             final int square = BitOps.lsb(bitboard);
             bitboard &= bitboard - 1;
             // piece square bonus
-            eval += BONUS[Piece.ROOK][player][square][phase];
+            eval += ROOK_BONUS[square][phase];
             // mobility
             final long rookAttacks = Magic.rookMoves(square, allOccupancy) & ~occupancy;
-            eval += MOBILITY_ROOK[Long.bitCount(rookAttacks)][phase];
+            eval += ROOK_MOBILITY[Long.bitCount(rookAttacks)][phase];
             // rook open file
             final int rookFile = square & 7;
-            eval += ((pawnBitboard & Bitboard.BB[Bitboard.FILE][rookFile]) == 0L ? ROOK_OPEN_FILE[phase] : 0) + ((otherPawnBitboard & Bitboard.BB[Bitboard.FILE][rookFile]) == 0L ? ROOK_OPEN_FILE[phase] : 0);
+            eval += ((pawnBitboard & FILE[rookFile]) == 0L ? OPEN_FILE : 0) + ((otherPawnBitboard & FILE[rookFile]) == 0L ? OPEN_FILE : 0);
             // rook opposed enemy queen
-            eval += (otherQueenBitboard & Bitboard.BB[Bitboard.FILE][rookFile]) != 0L ? ROOK_ON_QUEEN_FILE[phase] : 0;
+            eval += (otherQueenBitboard & FILE[rookFile]) != 0L ? ROOK_QUEEN_FILE : 0;
             // other king distance
-            eval += ROOK_ENEMY_KING_DISTANCE[Math.abs((square >>> 3) - otherKingRank) + Math.abs(rookFile - otherKingFile)][phase];
+            final int fileDist = rookFile - otherKingFile;
+            final int fileDistSign = fileDist >> 31;
+            final int rankDist = (square >>> 3) - otherKingRank;
+            final int rankDistSign = rankDist >> 31;
+            eval += ROOK_DISTANCE[(fileDist ^ fileDistSign) - fileDistSign + (rankDist ^ rankDistSign) - rankDistSign][phase];
             // other king safety
-            safety += ROOK_AFFECTS_KING_SAFETY[Long.bitCount(rookAttacks & KING_RING[1 ^ player][otherKingSquare])];
+            safety += ROOK_SAFETY[Long.bitCount(rookAttacks & KING_RING_BITBOARD[otherKingSquare])];
         }
         return (eval << 8) | (safety & 0xff);
     }
 
-    private static int bishopEval(long bitboard, int phase, int player, long allOccupancy, long occupancy, long pawnBitboard, long otherPawnBitboard, long lightSquares, int kingRank, int kingFile, int otherKingRank, int otherKingFile, int otherKingSquare) {
+    private static int bishopEval(long bitboard, int phase, int player, int other, long allOccupancy, long occupancy, long pawnBitboard, long otherPawnBitboard, long lightSquares, int kingRank, int kingFile, int otherKingRank, int otherKingFile, int otherKingSquare) {
         // init eval and material value
         final int numBishops = Long.bitCount(bitboard);
         int eval = PIECE_VALUE[Piece.BISHOP][numBishops][phase];
         int safety = 0;
         // bishop pair
         eval += numBishops > 1 ? BISHOP_PAIR[phase] : 0;
+        // cache arrays for faster access inside loop
+        final int[][] BISHOP_BONUS = BONUS[Piece.BISHOP][player];
+        final int[][] BISHOP_MOBILITY = MOBILITY_BISHOP;
+        final long[] ATTACKS = PAWN_ATTACKS[other];
+        final long[] PASSED_FILES = PASSED_PAWNS_FILES[player];
+        final long[] FORWARD = FORWARD_RANKS[player];
+        final int OUTPOST = BISHOP_OUTPOST[phase];
+        final int[][][] BAD = BAD_BISHOP;
+        final int[][] PROTECTS = BISHOP_PROTECTOR;
+        final int[][] BISHOP_DISTANCE = BISHOP_ENEMY_KING_DISTANCE;
+        final int[] BISHOP_SAFETY = BISHOP_AFFECTS_KING_SAFETY;
+        final long[] KING_RING_BITBOARD = KING_RING[other];
         // loop over bishops
         while(bitboard != 0L) {
             final int square = BitOps.lsb(bitboard);
             bitboard &= bitboard - 1;
             // piece square bonus
-            eval += BONUS[Piece.BISHOP][player][square][phase];
+            eval += BISHOP_BONUS[square][phase];
             // mobility
             final long bishopAttacks = Magic.bishopMoves(square, allOccupancy) & ~occupancy;
-            eval += MOBILITY_BISHOP[Long.bitCount(bishopAttacks)][phase];
+            eval += BISHOP_MOBILITY[Long.bitCount(bishopAttacks)][phase];
             // outpost
             final int bishopFile = square & 7;
             final int bishopRank = square >>> 3;
-            if((PAWN_ATTACKS[1 ^ player][square] & pawnBitboard) != 0L) {
-                if((PASSED_PAWNS_FILES[player][bishopFile] & FORWARD_RANKS[player][bishopRank] & otherPawnBitboard) == 0L) eval += BISHOP_OUTPOST[phase];
+            if((ATTACKS[square] & pawnBitboard) != 0L) {
+                if((PASSED_FILES[bishopFile] & FORWARD[bishopRank] & otherPawnBitboard) == 0L) eval += OUTPOST;
             }
             // bad bishop
             final long squareColorBitboard = (square >>> 3 & 1) == (square & 1) ? ~lightSquares : lightSquares;
-            eval += BAD_BISHOP[Long.bitCount(pawnBitboard & squareColorBitboard)][Long.bitCount(otherPawnBitboard & squareColorBitboard)][phase];
+            eval += BAD[Long.bitCount(pawnBitboard & squareColorBitboard)][Long.bitCount(otherPawnBitboard & squareColorBitboard)][phase];
             // own king distance
-            eval += BISHOP_PROTECTOR[Math.abs(bishopRank - kingRank) + Math.abs(bishopFile - kingFile)][phase];
+            final int fileDist = bishopFile - kingFile;
+            final int fileDistSign = fileDist >> 31;
+            final int rankDist = bishopRank - kingRank;
+            final int rankDistSign = rankDist >> 31;
+            eval += PROTECTS[(fileDist ^ fileDistSign) - fileDistSign + (rankDist ^ rankDistSign) - rankDistSign][phase];
             // other king distance
-            eval += BISHOP_ENEMY_KING_DISTANCE[Math.abs(bishopRank - otherKingRank) + Math.abs(bishopFile - otherKingFile)][phase];
+            final int otherFileDist = bishopFile - otherKingFile;
+            final int otherFileDistSign = otherFileDist >> 31;
+            final int otherRankDist = bishopRank - otherKingRank;
+            final int otherRankDistSign = otherRankDist >> 31;
+            eval += BISHOP_DISTANCE[(otherFileDist ^ otherFileDistSign) - otherFileDistSign + (otherRankDist ^ otherRankDistSign) - otherRankDistSign][phase];
             // other king safety
-            safety += BISHOP_AFFECTS_KING_SAFETY[Long.bitCount(bishopAttacks & KING_RING[1 ^ player][otherKingSquare])];
+            safety += BISHOP_SAFETY[Long.bitCount(bishopAttacks & KING_RING_BITBOARD[otherKingSquare])];
         }
         return (eval << 8) | (safety & 0xff);
     }
 
-    private static int knightEval(long bitboard, int phase, long pawnBitboard, int player, long occupancy, long otherPawnBitboard, int kingRank, int kingFile, int otherKingRank, int otherKingFile, int otherKingSquare) {
+    private static int knightEval(long bitboard, int phase, long pawnBitboard, int player, int other, long occupancy, long otherPawnBitboard, int kingRank, int kingFile, int otherKingRank, int otherKingFile, int otherKingSquare) {
         // init eval and material value
         final int numKnights = Long.bitCount(bitboard);
         int eval = PIECE_VALUE[Piece.KNIGHT][numKnights][phase];
@@ -534,27 +586,47 @@ public class Eval {
         // knight and pawns
         final int numPawns = Long.bitCount(pawnBitboard);
         eval += KNIGHT_PAWN[numKnights > 2 ? 2 : numKnights][numPawns > 8 ? 8 : numPawns][phase];
+        // cache arrays for faster access inside loop
+        final int[][] KNIGHT_BONUS = BONUS[Piece.KNIGHT][player];
+        final long[] LEAP = LEAP_ATTACKS_BITBOARD;
+        final int[][] KNIGHT_MOBILITY = MOBILITY_KNIGHT;
+        final long[] ATTACKS = PAWN_ATTACKS[other];
+        final long[] PASSED_FILES = PASSED_PAWNS_FILES[player];
+        final long[] FORWARD = FORWARD_RANKS[player];
+        final int OUTPOST = KNIGHT_OUTPOST[phase];
+        final int[][] PROTECTS = KNIGHT_PROTECTOR;
+        final int[][] KNIGHT_DISTANCE = KNIGHT_ENEMY_KING_DISTANCE;
+        final int[] KNIGHT_SAFETY = KNIGHT_AFFECTS_KING_SAFETY;
+        final long[] KING_RING_BITBOARD = KING_RING[other];
         // loop over knights
         while(bitboard != 0L) {
             final int square = BitOps.lsb(bitboard);
             bitboard &= bitboard - 1;
             // piece square bonus
-            eval += BONUS[Piece.KNIGHT][player][square][phase];
+            eval += KNIGHT_BONUS[square][phase];
             // mobility
-            final long knightAttacks = LEAP_ATTACKS_BITBOARD[square] & ~occupancy;
-            eval += MOBILITY_KNIGHT[Long.bitCount(knightAttacks)][phase];
+            final long knightAttacks = LEAP[square] & ~occupancy;
+            eval += KNIGHT_MOBILITY[Long.bitCount(knightAttacks)][phase];
             // outpost
             final int knightFile = square & 7;
             final int knightRank = square >>> 3;
-            if((PAWN_ATTACKS[1 ^ player][square] & pawnBitboard) != 0L) {
-                if((PASSED_PAWNS_FILES[player][knightFile] & FORWARD_RANKS[player][knightRank] & otherPawnBitboard) != 0L) eval += KNIGHT_OUTPOST[phase];
+            if((ATTACKS[square] & pawnBitboard) != 0L) {
+                if((PASSED_FILES[knightFile] & FORWARD[knightRank] & otherPawnBitboard) != 0L) eval += OUTPOST;
             }
             // own king distance
-            eval += KNIGHT_PROTECTOR[Math.abs(knightRank - kingRank) + Math.abs(knightFile - kingFile)][phase];
+            final int fileDist = knightFile - kingFile;
+            final int fileDistSign = fileDist >> 31;
+            final int rankDist = knightRank - kingRank;
+            final int rankDistSign = rankDist >> 31;
+            eval += PROTECTS[(fileDist ^ fileDistSign) - fileDistSign + (rankDist ^ rankDistSign) - rankDistSign][phase];
             // other king distance
-            eval += KNIGHT_ENEMY_KING_DISTANCE[Math.abs(knightRank - otherKingRank) + Math.abs(knightFile - otherKingFile)][phase];
+            final int otherFileDist = knightFile - otherKingFile;
+            final int otherFileDistSign = otherFileDist >> 31;
+            final int otherRankDist = knightRank - otherKingRank;
+            final int otherRankDistSign = otherRankDist >> 31;
+            eval += KNIGHT_DISTANCE[(otherFileDist ^ otherFileDistSign) - otherFileDistSign + (otherRankDist ^ otherRankDistSign) - otherRankDistSign][phase];
             // other king safety
-            safety += KNIGHT_AFFECTS_KING_SAFETY[Long.bitCount(knightAttacks & KING_RING[1 ^ player][otherKingSquare])];
+            safety += KNIGHT_SAFETY[Long.bitCount(knightAttacks & KING_RING_BITBOARD[otherKingSquare])];
         }
         return (eval << 8) | (safety & 0xff);
     }
@@ -564,49 +636,87 @@ public class Eval {
         final int numPawns = Long.bitCount(bitboard);
         int eval = PIECE_VALUE[Piece.PAWN][numPawns][phase];
         long originalBitboard = bitboard;
+        // cache arrays for faster access inside loop
+        final int[][] PAWN_BONUS = BONUS[Piece.PAWN][player];
+        final long[] FILE = FILE_BITBOARD;
+        final int DOUBLED = DOUBLED_PAWN[phase];
+        final long[] FORWARD = FORWARD_RANKS[1 ^ player];
+        final int WEAK = WEAK_PAWN[phase];
+        final int ISOLATED = ISOLATED_PAWN[phase];
+        final long[] ATTACKS = PAWN_ATTACKS[player];
+        final int PROTECTS = PAWN_PROTECTS[phase];
+        final int[] RANK_BONUS = PASSED_PAWN_RANK_BONUS[player];
+        final long[] RANK = RANK_BITBOARD;
+        final int PHALANX = PASSED_PAWN_PHALANX[phase];
+        final int VALUE_BISHOP = BISHOP_VALUE[phase];
         // loop over pawns
         while(bitboard != 0L) {
             final int square = BitOps.lsb(bitboard);
             bitboard &= bitboard - 1;
             // piece square bonus
-            eval += BONUS[Piece.PAWN][player][square][phase];
+            eval += PAWN_BONUS[square][phase];
             // doubled pawns
             final int pawnFile = square & 7;
-            final long pawnFileBitboard = FILE_BITBOARD[pawnFile];
-            if(Long.bitCount(originalBitboard & pawnFileBitboard) > 1) eval += DOUBLED_PAWN[phase];
+            final long pawnFileBitboard = FILE[pawnFile];
+            if(Long.bitCount(originalBitboard & pawnFileBitboard) > 1) eval += DOUBLED;
             // weak pawn
             final int pawnRank = square >>> 3;
-            final long adjacentFilesBitboard = (pawnFile > 0 ? FILE_BITBOARD[pawnFile - 1] : 0L) | (pawnFile < 7 ? FILE_BITBOARD[pawnFile + 1] : 0L);
+            final long adjacentFilesBitboard = (pawnFile > 0 ? FILE[pawnFile - 1] : 0L) | (pawnFile < 7 ? FILE[pawnFile + 1] : 0L);
             final long adjacentFilePawns = originalBitboard & adjacentFilesBitboard;
-            if((adjacentFilePawns & FORWARD_RANKS[1 ^ player][player == 0 ? pawnRank + 1 : pawnRank - 1]) == 0L) eval += WEAK_PAWN[phase];
+            if((adjacentFilePawns & FORWARD[player == 0 ? pawnRank + 1 : pawnRank - 1]) == 0L) eval += WEAK;
             // isolated pawn
-            if(adjacentFilePawns == 0) eval += ISOLATED_PAWN[phase];
+            if(adjacentFilePawns == 0) eval += ISOLATED;
             // pawn protects
-            if((PAWN_ATTACKS[player][square] & knightBishopBitboard) != 0L) eval += PAWN_PROTECTS[phase];
+            if((ATTACKS[square] & knightBishopBitboard) != 0L) eval += PROTECTS;
             // passed pawn
-            final long forwardRanksBitboard = FORWARD_RANKS[player][pawnRank];
+            final long forwardRanksBitboard = FORWARD[pawnRank];
             final long otherPassedPawnBlockers = otherPawnBitboard & (pawnFileBitboard | adjacentFilesBitboard) & forwardRanksBitboard;
             if(otherPassedPawnBlockers == 0L) {
                 // additional piece square bonus
-                eval += PASSED_PAWN_RANK_BONUS[player][pawnRank];
+                eval += RANK_BONUS[pawnRank];
                 // phalanx
-                eval += (originalBitboard & adjacentFilesBitboard & RANK_BITBOARD[pawnRank]) != 0L ? PASSED_PAWN_PHALANX[phase] : 0;
+                eval += (originalBitboard & adjacentFilesBitboard & RANK[pawnRank]) != 0L ? PHALANX : 0;
                 // other king distance when low material
                 if(materialValuePieces < QUEEN_VALUE) {
-                    final int kingDist = 8 - Math.max(Math.abs(kingRank - pawnRank), Math.abs(kingFile - pawnFile));
-                    final int otherKingDist = Math.max(Math.abs(otherKingRank - pawnRank), Math.abs(otherKingFile - pawnFile));
+                    final int fileDist = pawnFile - kingFile;
+                    final int fileDistSign = fileDist >> 31;
+                    final int rankDist = pawnRank - kingRank;
+                    final int rankDistSign = rankDist >> 31;
+                    final int rankAbs = (rankDist ^ rankDistSign) - rankDistSign;
+                    final int absDiff = rankAbs - ((fileDist ^ fileDistSign) - fileDistSign);
+                    final int kingDist = 8 - (rankAbs - (absDiff & (absDiff >> 31)));
+                    final int otherFileDist = pawnFile - otherKingFile;
+                    final int otherFileDistSign = otherFileDist >> 31;
+                    final int otherRankDist = pawnRank - otherKingRank;
+                    final int otherRankDistSign = otherRankDist >> 31;
+                    final int otherRankAbs = (otherRankDist ^ otherRankDistSign) - otherRankDistSign;
+                    final int otherAbsDiff = otherRankAbs - ((otherFileDist ^ otherFileDistSign) - otherFileDistSign);
+                    final int otherKingDist = otherRankAbs - (otherAbsDiff & (otherAbsDiff >> 31));
                     eval += (kingDist * kingDist + otherKingDist * otherKingDist) * (player == 0 ? pawnRank : 7 - pawnRank);
                 }
                 // other king stops pawn when other has no material
-                if(otherMaterialValuePieces == 0 && (originalBitboard & FORWARD_RANKS[player][pawnRank] & FILE_BITBOARD[pawnFile]) != 0L) {
-                    final int pawnPromoteDist = Math.abs((player == 0 ? 7 : 0) - pawnRank) + (pawnRank == (player == 0 ? 1 : 6) ? 1 : 0);
-                    final int otherKingDistFromPromote = Math.max(Math.abs((player == 0 ? 7 : 0) - otherKingRank), Math.abs(pawnFile - otherKingFile));
-                    final int pawnTurnToMove = player == thisPlayer ? 1 : 0;
+                if(otherMaterialValuePieces == 0 && (originalBitboard & FORWARD[pawnRank] & FILE[pawnFile]) != 0L) {
+                    final int pawnPromoteRank = (-(player & 1 ^ 1) & 0b111);
+                    final int pawnRankDist = pawnRank - pawnPromoteRank;
+                    final int pawnRankDistSign = pawnRankDist >> 31;
+                    final int pawnPromoteDist = (pawnRankDist ^ pawnRankDistSign) - pawnRankDistSign + (pawnPromoteRank ^ 0b110);
+
+                    final int otherRankDist = pawnPromoteRank - otherKingRank;
+                    final int otherRankDistSign = otherRankDist >> 31;
+                    final int otherRankDistAbs = (otherRankDist + otherRankDistSign) ^ otherRankDistSign;
+                    final int otherFileDist = pawnFile - otherKingFile;
+                    final int otherFileSign = otherFileDist >> 31;
+                    final int otherAbsDiff = otherRankDistAbs - ((otherFileDist ^ otherFileSign) - otherFileSign);
+                    final int otherKingDistFromPromote = otherRankDistAbs - (otherAbsDiff & (otherAbsDiff >> 31));
+
+                    final int pawnTurnToMove = 1 ^ (player ^ thisPlayer);
                     final int kingTurnToMove = 1 ^ pawnTurnToMove;
-                    final int ownKingInFront = (kingBitboard & FORWARD_RANKS[player][pawnRank] & FILE_BITBOARD[pawnFile]) != 0L ? 1 : 0;
+                    final long mask = kingBitboard & FORWARD[pawnRank] & FILE[pawnFile];
+                    final int ownKingInFront = (int) ((mask | -mask) >>> 63);
+
                     final int pawnDist = pawnPromoteDist - pawnTurnToMove + ownKingInFront;
                     final int kingDist = otherKingDistFromPromote - kingTurnToMove;
-                    if(kingDist > pawnDist) eval += BISHOP_VALUE[phase];
+                    eval += ((pawnDist - kingDist) >>> 31) * VALUE_BISHOP;
                 }
             }
         }
