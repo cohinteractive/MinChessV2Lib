@@ -37,7 +37,7 @@ public class Perft {
         long[] board = Board.fromFen(fen);
         System.out.println(Board.boardString(board));
         long startTime = System.nanoTime();
-        long nodes = perft(board, depth);
+        long nodes = perft(board, depth, PARALLEL, RECURSIVE);
         long elapsedMs = (System.nanoTime() - startTime) / 1_000_000;
         if(nodes == expectedNodes) {
             System.out.println("Result: PASSED\n");
@@ -47,10 +47,49 @@ public class Perft {
         }
         return elapsedMs;
     }
+
+    private static final class Frame {
+        long[] board;
+        int player;
+        int depth;
+        int moveIndex;
+        long[] moves;
+        int moveCount;
+    }
+
+    private static final class FrameStack {
+        final Frame[] frames;
+        int top;
+        FrameStack(int capacity) {
+            frames = new Frame[capacity];
+            for(int i = 0; i < capacity; i ++) frames[i] = new Frame();
+            top = 0;
+        }
+
+        Frame push(long[] board, int player, int depth) {
+            Frame f = frames[top ++];
+            f.board = board;
+            f.player = player;
+            f.depth = depth;
+            f.moves = Gen.gen(board, false, false);
+            f.moveCount = (int) f.moves[Gen.MOVELIST_SIZE];
+            f.moveIndex = 0;
+            return f;
+        }
+
+        Frame peek() { return frames[top - 1]; }
+
+        void pop() { top --; }
+
+        boolean isEmpty() { return top == 0; }
+
+    }
     
     private static final boolean WAIT_BETWEEN_POSITIONS = true;
     private static final int WAIT_TIME_MS = 4000;
     private static final int THREAD_COUNT = Runtime.getRuntime().availableProcessors();
+    private static final boolean PARALLEL = true;
+    private static final boolean RECURSIVE = true;
 
     private static final String[] POSITION_NAMES = {
         "1. Initial position",
@@ -96,21 +135,25 @@ public class Perft {
 
     private Perft() {}
 
-    private static long perft(long[] board, int maxDepth) {
+    private static long perft(long[] board, int maxDepth, boolean parallel, boolean recursive) {
         long totalNodes = 0;
         int firstMoveCount = 0;
         int player = (int) board[Board.STATUS] & 0x1;
         for(int depth = 1; depth <= maxDepth; depth ++) {
             long start = System.nanoTime();
             long nodes;
-            if(depth == maxDepth) {
+            if(depth == maxDepth && parallel) {
                 try {
-                    nodes = parallelPerft(board, player, depth);
+                    nodes = searchParallel(board, player, depth, recursive);
                 } catch(InterruptedException | ExecutionException e) {
                     throw new RuntimeException("Parallel perft failed", e);
                 }
             } else {
-                nodes = search(board, player, depth, maxDepth, firstMoveCount);
+                if(recursive) {
+                    nodes = search(board, player, depth, maxDepth, firstMoveCount);
+                } else {
+                    nodes = searchFlattened(board, player, depth, maxDepth, firstMoveCount);
+                }
             }
             long elapsedMs = (System.nanoTime() - start) / 1_000_000;
             System.out.printf("Depth %d/%d: %,d nodes in %d ms%n", depth, maxDepth, nodes, elapsedMs);
@@ -124,7 +167,7 @@ public class Perft {
         return totalNodes;
     }
 
-    private static long parallelPerft(long[] board, int player, int depth) throws InterruptedException, ExecutionException {
+    private static long searchParallel(long[] board, int player, int depth, boolean recursive) throws InterruptedException, ExecutionException {
         long[] moves = Gen.gen(board, false, false);
         int moveCount = (int) moves[Gen.MOVELIST_SIZE];
         ExecutorService executor = Executors.newFixedThreadPool(THREAD_COUNT);
@@ -134,7 +177,11 @@ public class Perft {
             futures.add(executor.submit(() -> {
                 long[] nextBoard = Board.makeMove(board, move);
                 if(Board.isPlayerInCheck(nextBoard, player)) return 0L;
-                return search(nextBoard, 1 ^ player, depth - 1, depth - 1, 0);
+                if(recursive) {
+                    return search(nextBoard, 1 ^ player, depth - 1, depth - 1, 0);
+                } else {
+                    return searchFlattened(nextBoard, 1 ^ player, depth - 1, depth - 1, 0);
+                }
             }));
         }
         long totalNodes = 0;
@@ -161,6 +208,30 @@ public class Perft {
             }
         }
         return nodes;
+    }
+
+    private static long searchFlattened(long[] rootBoard, int rootPlayer, int depth, int maxDepth, int firstMoveCount) {
+        
+        long totalNodes = 0;
+        FrameStack stack = new FrameStack(32);
+        stack.push(rootBoard, rootPlayer, depth);
+
+        while(!stack.isEmpty()) {
+            Frame frame = stack.peek();
+            if(frame.moveIndex >= frame.moveCount) {
+                stack.pop();
+                continue;
+            }
+            long move = frame.moves[frame.moveIndex ++];
+            long[] nextBoard = Board.makeMove(frame.board, move);
+            if(Board.isPlayerInCheck(nextBoard, frame.player)) continue;
+            if(frame.depth == 1) {
+                totalNodes ++;
+            } else {
+                stack.push(nextBoard, frame.player ^ 1, frame.depth - 1);
+            }
+        }
+        return totalNodes;
     }
 
     private static void sleep(int millis) {
