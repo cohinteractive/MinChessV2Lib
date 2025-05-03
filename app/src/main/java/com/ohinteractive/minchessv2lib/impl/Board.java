@@ -304,6 +304,166 @@ public class Board {
         return newBoard;
     }
 
+    public static void makeMoveWith(long[] board, long move) {
+        int status = (int) board[STATUS];
+        int castling = status >>> CASTLING_SHIFT & CASTLING_BITS;
+        int eSquare = enPassantSquare(board);
+        final int originalESquare = eSquare;
+        int halfMoveClock = status >>> HALF_MOVE_CLOCK_SHIFT & HALF_MOVE_CLOCK_BITS;
+        int fullMoveNumber = status >>> FULL_MOVE_NUMBER_SHIFT & FULL_MOVE_NUMBER_BITS;
+        long key = board[KEY];
+        final int startSquare = (int) move & SQUARE_BITS;
+        final int startPiece = (int) move >>> START_PIECE_SHIFT & PIECE_BITS;
+        final int startPieceType = startPiece & Piece.TYPE;
+        final int targetSquare = (int) move >>> TARGET_SQUARE_SHIFT & SQUARE_BITS;
+        final int targetPiece = (int) move >>> TARGET_PIECE_SHIFT & PIECE_BITS;
+        final long targetSquareBit = 1L << targetSquare;
+        final int player = status & PLAYER_BIT;
+        long board0 = board[0];
+        long board1 = board[1];
+        long board2 = board[2];
+        long board3 = board[3];
+        if(eSquare != Value.INVALID) {
+            key ^= Zobrist.ENPASSANT_FILE[eSquare & Value.FILE];
+            eSquare = Value.INVALID;
+        }
+        if(targetPiece != Value.NONE) {
+            halfMoveClock = 0;
+            final int other = 1 ^ player;
+            board0 ^= -(targetPiece & 1) & targetSquareBit;
+            board1 ^= -(targetPiece >>> 1 & 1) & targetSquareBit;
+            board2 ^= -(targetPiece >>> 2 & 1) & targetSquareBit;
+            board3 ^= -(other & 1) & targetSquareBit;
+            key ^= Zobrist.PIECE[targetPiece & Piece.TYPE][other][targetSquare];
+        }
+        switch(startPieceType) {
+            case Piece.QUEEN:
+            case Piece.BISHOP:
+            case Piece.KNIGHT: {
+                final long pieceMoveBits = (1L << startSquare) | targetSquareBit;
+                board0 ^= -(startPiece & 1) & pieceMoveBits;
+                board1 ^= -(startPiece >>> 1 & 1) & pieceMoveBits;
+                board2 ^= -(startPiece >>> 2 & 1) & pieceMoveBits;
+                board3 ^= -(player & 1) & pieceMoveBits;
+                key ^= Zobrist.PIECE[startPieceType][player][startSquare]
+                    ^  Zobrist.PIECE[startPieceType][player][targetSquare];
+                break;
+            }
+            case Piece.KING: {
+                final long pieceMoveBits = (1L << startSquare) | targetSquareBit;
+                board0 ^= pieceMoveBits;
+                board3 ^= -(player & 1) & pieceMoveBits;
+                key ^= Zobrist.PIECE[Piece.KING][player][startSquare]
+                    ^  Zobrist.PIECE[Piece.KING][player][targetSquare];
+                final boolean playerKingSideCastling  = (castling & (player == Value.WHITE ? WHITE_KINGSIDE_BIT : BLACK_KINGSIDE_BIT))  != 0;
+                final boolean playerQueenSideCastling = (castling & (player == Value.WHITE ? WHITE_QUEENSIDE_BIT : BLACK_QUEENSIDE_BIT)) != 0;
+                if(playerKingSideCastling || playerQueenSideCastling) {
+                    key ^= (playerKingSideCastling  ? Zobrist.KING_SIDE[player]  : 0)
+                        ^  (playerQueenSideCastling ? Zobrist.QUEEN_SIDE[player] : 0);
+                    castling &= ~(player == Value.WHITE ? WHITE_CASTLING_BITS : BLACK_CASTLING_BITS);
+                }
+                if(Math.abs(startSquare - targetSquare) == 2) {
+                    final long rookMoveBits;
+                    if((targetSquare & Value.FILE) == Value.FILE_G) {
+                        rookMoveBits = (1L << (targetSquare + 1)) | (1L << (targetSquare - 1));
+                        key ^= Zobrist.PIECE[Piece.ROOK][player][targetSquare + 1]
+                            ^  Zobrist.PIECE[Piece.ROOK][player][targetSquare - 1];
+                    } else {
+                        rookMoveBits = (1L << (targetSquare - 2)) | (1L << (targetSquare + 1));
+                        key ^= Zobrist.PIECE[Piece.ROOK][player][targetSquare - 2]
+                            ^  Zobrist.PIECE[Piece.ROOK][player][targetSquare + 1];
+                    }
+                    board0 ^= rookMoveBits;
+                    board1 ^= rookMoveBits;
+                    board3 ^= -(player & 1) & rookMoveBits;
+                }
+                break;
+            }
+            case Piece.ROOK: {
+                final long pieceMoveBits = (1L << startSquare) | targetSquareBit;
+                board0 ^= pieceMoveBits;
+                board1 ^= pieceMoveBits;
+                board3 ^= -(player & 1) & pieceMoveBits;
+                key ^= Zobrist.PIECE[Piece.ROOK][player][startSquare]
+                    ^  Zobrist.PIECE[Piece.ROOK][player][targetSquare];
+                if((castling & Value.KINGSIDE_BIT[player]) != Value.NONE) {
+                    if(startSquare == (player == Value.WHITE ? SQUARE_H1 : SQUARE_H8)) {
+                        castling ^= Value.KINGSIDE_BIT[player];
+                        key ^= Zobrist.KING_SIDE[player];
+                    }
+                }
+                if((castling & Value.QUEENSIDE_BIT[player]) != Value.NONE) {
+                    if(startSquare == (player == Value.WHITE ? SQUARE_A1 : SQUARE_A8)) {
+                        castling ^= Value.QUEENSIDE_BIT[player];
+                        key ^= Zobrist.QUEEN_SIDE[player];
+                    }
+                }
+                break;
+            }
+            case Piece.PAWN: {
+                final int promotePiece = (int) move >>> PROMOTE_PIECE_SHIFT & PIECE_BITS;
+                halfMoveClock = 0;
+                if(promotePiece == Value.NONE) {
+                    final long pieceMoveBits = (1L << startSquare) | targetSquareBit;
+                    board1 ^= pieceMoveBits;
+                    board2 ^= pieceMoveBits;
+                    board3 ^= -(player & 1) & pieceMoveBits;
+                    key ^= Zobrist.PIECE[startPieceType][player][startSquare]
+                        ^  Zobrist.PIECE[startPieceType][player][targetSquare];
+                } else {
+                    final long startSquareBit = 1L << startSquare;
+                    board0 ^= -(promotePiece & 1) & targetSquareBit;
+                    board1 ^= startSquareBit | (-(promotePiece >>> 1 & 1) & targetSquareBit);
+                    board2 ^= startSquareBit | (-(promotePiece >>> 2 & 1) & targetSquareBit);
+                    board3 ^= -(player & 1) & (startSquareBit | targetSquareBit);
+                    key ^= Zobrist.PIECE[startPieceType][player][startSquare]
+                        ^  Zobrist.PIECE[promotePiece & Piece.TYPE][player][targetSquare];
+                }
+                if(targetSquare == originalESquare) {
+                    final int other = 1 ^ player;
+                    final int captureSquare = targetSquare + (player == Value.WHITE ? -8 : 8);
+                    final long captureSquareBit = 1L << captureSquare;
+                    board1 ^= captureSquareBit;
+                    board2 ^= captureSquareBit;
+                    board3 ^= -(other & 1) & captureSquareBit;
+                    key ^= Zobrist.PIECE[Piece.PAWN][other][captureSquare];
+                }
+                if(Math.abs(startSquare - targetSquare) == 16) {
+                    eSquare = startSquare + (player == Value.WHITE ? 8 : -8);
+                    key ^= Zobrist.ENPASSANT_FILE[eSquare & Value.FILE];
+                }
+                break;
+            }
+            default: break;
+        }
+        if((targetPiece & Piece.TYPE) == Piece.ROOK) {
+            int other = 1 ^ player;
+            if((castling & (other == Value.WHITE ? WHITE_KINGSIDE_BIT : BLACK_KINGSIDE_BIT)) != Value.NONE) {
+                if(targetSquare == (other == Value.WHITE ? SQUARE_H1 : SQUARE_H8)) {
+                    castling ^= (other == Value.WHITE ? WHITE_KINGSIDE_BIT : BLACK_KINGSIDE_BIT);
+                    key ^= Zobrist.KING_SIDE[other];
+                }
+            }
+            if((castling & (other == Value.WHITE ? WHITE_QUEENSIDE_BIT : BLACK_QUEENSIDE_BIT)) != Value.NONE) {
+                if(targetSquare == (other == Value.WHITE ? SQUARE_A1 : SQUARE_A8)) {
+                    castling ^= (other == Value.WHITE ? WHITE_QUEENSIDE_BIT : BLACK_QUEENSIDE_BIT);
+                    key ^= Zobrist.QUEEN_SIDE[other];
+                }
+            }
+        }
+        board[0] = board0;
+        board[1] = board1;
+        board[2] = board2;
+        board[3] = board3;
+        board[STATUS] =
+            (1 ^ player) |
+            (castling << CASTLING_SHIFT) |
+            (eSquare != Value.INVALID ? (eSquare << ESQUARE_SHIFT) : 0) |
+            (halfMoveClock << HALF_MOVE_CLOCK_SHIFT) |
+            ((fullMoveNumber + player) << FULL_MOVE_NUMBER_SHIFT);
+        board[KEY] = key ^ Zobrist.WHITEMOVE;
+    }
+
     public static final long ENPASSANT_RESET_BITS = ~(SQUARE_BITS << ESQUARE_SHIFT);
 
     public static long[] nullMove(long[] board) {
@@ -318,6 +478,17 @@ public class Board {
         newBoard[STATUS] = (board[STATUS] ^ PLAYER_BIT) & ENPASSANT_RESET_BITS;
         newBoard[KEY] = key;
         return newBoard;
+    }
+
+    public static void nullMoveWith(long[] board) {
+        long key = board[KEY];
+        int eSquare = (int) board[STATUS] >>> ESQUARE_SHIFT & SQUARE_BITS;
+        if(eSquare > 0) {
+            key ^= Zobrist.ENPASSANT_FILE[eSquare & 7];
+        }
+        key ^= Zobrist.WHITEMOVE;
+        board[STATUS] = (board[STATUS] ^ PLAYER_BIT) & ENPASSANT_RESET_BITS;
+        board[KEY] = key;
     }
 
     public static int getSquare(long[] board, int square) {
@@ -441,14 +612,14 @@ public class Board {
      * To get a bitboard for a specific piece type, not knowing color, we know which piece boards to touch, e.g. king, general color:
      * // king is on board0, we need to remove all other board bits except board3, we also need a colorMask to
      * // either use board3 (for black) or flip board3 (for white).
-     * // we get colorMask by inverting the colorBit, negating it and XORing board3
-     * long colorMask = (-((1 ^ color) & 1) ^ board3);
+     * // we get colorMask by negating the color bit, XORing board3 and then inverting the whole mask
+     * long colorMask = ~(-(color & 1) ^ board3);
      * long bitboard = board0 & ~board1 & ~board2 & colorMask;
      * In one line we could do:
-     * long bitboard = board0 & ~board1 & ~board2 & (-((1 ^ color) & 1) ^ board3);
+     * long bitboard = board0 & ~board1 & ~board2 & ~(-(color & 1) ^ board3);
      * 
      * To get a bitboard for a general piece:
-     * long bitboard = (-(piece & 1) & board0) & (-(piece >>> 1 & 1) & board1) & (-(piece >>> 2 & 1) & board2) & (-((1 ^ (piece >>> 3)) & 1) ^ board3);
+     * long bitboard = (-(piece & 1) & board0) & (-(piece >>> 1 & 1) & board1) & (-(piece >>> 2 & 1) & board2) & ~(-(piece >>> 3 & 1) ^ board3);
      */
     
 }
