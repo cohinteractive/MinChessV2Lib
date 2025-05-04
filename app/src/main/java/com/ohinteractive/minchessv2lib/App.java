@@ -2,7 +2,6 @@ package com.ohinteractive.minchessv2lib;
 
 import com.ohinteractive.minchessv2lib.impl.Board;
 import com.ohinteractive.minchessv2lib.impl.search.Search;
-import com.ohinteractive.minchessv2lib.impl.search.SearchConfig;
 import com.ohinteractive.minchessv2lib.impl.search.SearchResult;
 import com.ohinteractive.minchessv2lib.test.TestEval;
 import com.ohinteractive.minchessv2lib.util.Move;
