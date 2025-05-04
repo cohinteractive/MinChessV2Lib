@@ -3,6 +3,7 @@
 /out/
 bin/
 build/
+/app/src/main/resources/
 
 # Ignore all class files
 *.class
