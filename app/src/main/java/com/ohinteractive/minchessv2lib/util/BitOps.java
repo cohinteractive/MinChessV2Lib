@@ -4,7 +4,7 @@ public class BitOps {
     
     /*
 	 * To get the LSB from a long, use:
-	 * int lsbIndex = BitOps.LSB[(int) (((lsb & -lsb) * B.DB) >>> 58)];
+	 * int lsbIndex = BitOps.LSB[(int) (((lsb & -lsb) * BitOps.DB) >>> 58)];
 	 */
 	public static final int[] LSB = {
         0,  1, 48,  2, 57, 49, 28,  3,
