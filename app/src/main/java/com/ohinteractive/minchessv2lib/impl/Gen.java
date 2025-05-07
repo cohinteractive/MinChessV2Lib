@@ -1,6 +1,5 @@
 package com.ohinteractive.minchessv2lib.impl;
 
-import com.ohinteractive.minchessv2lib.util.BitOps;
 import com.ohinteractive.minchessv2lib.util.Bitboard;
 import com.ohinteractive.minchessv2lib.util.Magic;
 import com.ohinteractive.minchessv2lib.util.Piece;
@@ -12,13 +11,13 @@ public class Gen {
     public static final int MOVELIST_SIZE = MAX_MOVELIST_SIZE - 1;
 
     public static long[] gen(long[] board, boolean legal, boolean tactical) {
-        final int player = (int) board[Board.STATUS] & Board.PLAYER_BIT;
+        final int status = (int) board[Board.STATUS];
+        final int player = status & Board.PLAYER_BIT;
         final int playerBit = player << Board.PLAYER_SHIFT;
         final long board0 = board[0];
         final long board1 = board[1];
         final long board2 = board[2];
         final long board3 = board[3];
-        final int status = (int) board[Board.STATUS];
         final long allOccupancy = board0 | board1 | board2;
         final long colorMask = ~(-(player & 1) ^ board3);
         final long otherOccupancy = allOccupancy & ~colorMask;
@@ -58,32 +57,38 @@ public class Gen {
 
     private static int getKingMoves(long board0, long board1, long board2, long board3, long colorMask, int status, long[] moves, int piece, int moveListLength, int player, long allOccupancy, long otherOccupancy, boolean tactical) {
         final long kingBitboard = board0 & ~board1 & ~board2 & colorMask;
-        final int square = BitOps.LSB[(int) (((kingBitboard & -kingBitboard) * BitOps.DB) >>> 58)];
+        final int[] lsb = LSB;
+        final int square = lsb[(int) (((kingBitboard & -kingBitboard) * DB) >>> 58)];
         final long kingAttacks = KING_ATTACKS[square];
         long moveBitboard = kingAttacks & otherOccupancy;
+        final int moveInfo = square | (piece << Board.START_PIECE_SHIFT);
         while(moveBitboard != 0L) {
-            final int targetSquare = BitOps.LSB[(int) (((moveBitboard & -moveBitboard) * BitOps.DB) >>> 58)];
-            moveBitboard &= moveBitboard - 1;
-            moves[moveListLength ++] = square | (targetSquare << Board.TARGET_SQUARE_SHIFT) | (piece << Board.START_PIECE_SHIFT) | (Board.getSquare(board0, board1, board2, board3, targetSquare) << Board.TARGET_PIECE_SHIFT);
+            final long b = moveBitboard & -moveBitboard;
+            moveBitboard ^= b;
+            final int targetSquare = lsb[(int) ((b * DB) >>> 58)];
+            moves[moveListLength ++] = moveInfo | (targetSquare << Board.TARGET_SQUARE_SHIFT) | (Board.getSquare(board0, board1, board2, board3, targetSquare) << Board.TARGET_PIECE_SHIFT);
         }
         if(tactical) return moveListLength;
         moveBitboard = kingAttacks & ~allOccupancy;
         while(moveBitboard!= 0L) {
-            moves[moveListLength ++] = square | (BitOps.LSB[(int) (((moveBitboard & -moveBitboard) * BitOps.DB) >>> 58)] << Board.TARGET_SQUARE_SHIFT) | (piece << Board.START_PIECE_SHIFT);
-            moveBitboard &= moveBitboard - 1;
+            final long b = moveBitboard & -moveBitboard;
+            moveBitboard ^= b;
+            moves[moveListLength ++] = moveInfo | (lsb[(int) ((b * DB) >>> 58)] << Board.TARGET_SQUARE_SHIFT);
         }
-        final boolean kingSide = (status & (player == Value.WHITE ? WHITE_KINGSIDE_CASTLING_BIT_UNSHIFTED : BLACK_KINGSIDE_CASTLING_BIT_UNSHIFTED)) != Value.NONE;
-        final boolean queenSide = (status & (player == Value.WHITE ? WHITE_QUEENSIDE_CASTLING_BIT_UNSHIFTED : BLACK_QUEENSIDE_CASTLING_BIT_UNSHIFTED)) != Value.NONE;
+        final int blackCastlingBitsMask = -player;
+        final int whiteCastlingBitsMask = ~blackCastlingBitsMask; 
+        final boolean kingSide =  (status & ((WHITE_KINGSIDE_CASTLING_BIT_UNSHIFTED  & whiteCastlingBitsMask) | (BLACK_KINGSIDE_CASTLING_BIT_UNSHIFTED  & blackCastlingBitsMask))) != Value.NONE;
+        final boolean queenSide = (status & ((WHITE_QUEENSIDE_CASTLING_BIT_UNSHIFTED & whiteCastlingBitsMask) | (BLACK_QUEENSIDE_CASTLING_BIT_UNSHIFTED & blackCastlingBitsMask))) != Value.NONE;
         if(kingSide || queenSide) {
             final int other = 1 ^ player;
             if(!Board.isSquareAttackedByPlayer(board0, board1, board2, board3, square, other)) {
                 if(kingSide) {
-                    if((allOccupancy & (player == Value.WHITE ? WHITE_KINGSIDE_CASTLING_INTERMEDIATE_SQUARES : BLACK_KINGSIDE_CASTLING_INTERMEDIATE_SQUARES)) == 0L && !Board.isSquareAttackedByPlayer(board0, board1, board2, board3, square + 1, other))
-                        moves[moveListLength ++] = square | ((square + 2) << Board.TARGET_SQUARE_SHIFT) | (piece << Board.START_PIECE_SHIFT);
+                    if((allOccupancy & ((WHITE_KINGSIDE_CASTLING_INTERMEDIATE_SQUARES  & whiteCastlingBitsMask) | (BLACK_KINGSIDE_CASTLING_INTERMEDIATE_SQUARES  & blackCastlingBitsMask))) == 0L && !Board.isSquareAttackedByPlayer(board0, board1, board2, board3, square + 1, other))
+                        moves[moveListLength ++] = moveInfo | ((square + 2) << Board.TARGET_SQUARE_SHIFT);
                 }
                 if(queenSide) {
-                    if((allOccupancy & (player == Value.WHITE ? WHITE_QUEENSIDE_CASTLING_INTERMEDIATE_SQUARES : BLACK_QUEENSIDE_CASTLING_INTERMEDIATE_SQUARES)) == 0L && !Board.isSquareAttackedByPlayer(board0, board1, board2, board3, square - 1, other))
-                        moves[moveListLength ++] = square | ((square - 2) << Board.TARGET_SQUARE_SHIFT) | (piece << Board.START_PIECE_SHIFT);
+                    if((allOccupancy & ((WHITE_QUEENSIDE_CASTLING_INTERMEDIATE_SQUARES & whiteCastlingBitsMask) | (BLACK_QUEENSIDE_CASTLING_INTERMEDIATE_SQUARES & blackCastlingBitsMask))) == 0L && !Board.isSquareAttackedByPlayer(board0, board1, board2, board3, square - 1, other))
+                        moves[moveListLength ++] = moveInfo | ((square - 2) << Board.TARGET_SQUARE_SHIFT);
                 }
             }
         }
@@ -92,21 +97,27 @@ public class Gen {
 
     private static int getKnightMoves(long board0, long board1, long board2, long board3, long colorMask, int player, long[] moves, int piece, int moveListLength, long allOccupancy, long otherOccupancy, boolean tactical) {
         long knightBitboard = board0 & ~board1 & board2 & colorMask;
+        final int[] lsb = LSB;
+        final long[] leapAttacks = LEAP_ATTACKS;
         while(knightBitboard != 0L) {
-            final int square = BitOps.LSB[(int) (((knightBitboard & -knightBitboard) * BitOps.DB) >>> 58)];
-            knightBitboard &= knightBitboard - 1;
-            final long knightAttacks = LEAP_ATTACKS[square];
+            final long b = knightBitboard & -knightBitboard;
+            knightBitboard ^= b;
+            final int square = lsb[(int) ((b * DB) >>> 58)];
+            final long knightAttacks = leapAttacks[square];
             long moveBitboard = knightAttacks & otherOccupancy;
+            final int moveInfo = square | (piece << Board.START_PIECE_SHIFT);
             while(moveBitboard != 0L) {
-                final int targetSquare = BitOps.LSB[(int) (((moveBitboard & -moveBitboard) * BitOps.DB) >>> 58)];
-                moveBitboard &= moveBitboard - 1;
-                moves[moveListLength ++] = square | (targetSquare << Board.TARGET_SQUARE_SHIFT) | (piece << Board.START_PIECE_SHIFT) | (Board.getSquare(board0, board1, board2, board3, targetSquare) << Board.TARGET_PIECE_SHIFT);
+                final long b2 = moveBitboard & -moveBitboard;
+                moveBitboard ^= b2;
+                final int targetSquare = lsb[(int) ((b2 * DB) >>> 58)];
+                moves[moveListLength ++] = moveInfo | (targetSquare << Board.TARGET_SQUARE_SHIFT) | (Board.getSquare(board0, board1, board2, board3, targetSquare) << Board.TARGET_PIECE_SHIFT);
             }
             if(tactical) continue;
             moveBitboard = knightAttacks & ~allOccupancy;
             while(moveBitboard != 0L) {
-                moves[moveListLength ++] = square | (BitOps.LSB[(int) (((moveBitboard & -moveBitboard) * BitOps.DB) >>> 58)] << Board.TARGET_SQUARE_SHIFT) | (piece << Board.START_PIECE_SHIFT);
-                moveBitboard &= moveBitboard - 1;
+                final long b2 = moveBitboard & -moveBitboard;
+                moveBitboard ^= b2;
+                moves[moveListLength ++] = moveInfo | (lsb[(int) ((b2 * DB) >>> 58)] << Board.TARGET_SQUARE_SHIFT);
             }
         }
         return moveListLength;
@@ -114,6 +125,7 @@ public class Gen {
 
     private static int getPawnMoves(long board0, long board1, long board2, long board3, long colorMask, int status, long[] moves, int piece, int moveListLength, int player, long allOccupancy, long otherOccupancy, boolean tactical) {
         long pawnBitboard = ~board0 & board1 & board2 & colorMask;
+        final int[] lsb = LSB;
         final int playerBit = player << Board.PLAYER_SHIFT;
         final int eSquare = status >>> Board.ESQUARE_SHIFT & Board.SQUARE_BITS;
         otherOccupancy |= (eSquare > 0 ? (1L << eSquare) : 0L);
@@ -121,21 +133,24 @@ public class Gen {
         final long[] pawnAdvanceSingle = PAWN_ADVANCE_SINGLE[player];
         final long[] pawnAdvanceDouble = PAWN_ADVANCE_DOUBLE[player];
         while(pawnBitboard != 0L) {
-            final int square = BitOps.LSB[(int) (((pawnBitboard & -pawnBitboard) * BitOps.DB) >>> 58)];
-            pawnBitboard &= pawnBitboard - 1;
+            final long b = pawnBitboard & -pawnBitboard;
+            pawnBitboard ^= b;
+            final int square = lsb[(int) ((b * DB) >>> 58)];
             long moveBitboard = pawnAttacks[square] & otherOccupancy;
+            final int moveInfo = square | (piece << Board.START_PIECE_SHIFT); 
             while(moveBitboard != 0L) {
-                final int targetSquare = BitOps.LSB[(int) (((moveBitboard & -moveBitboard) * BitOps.DB) >>> 58)];
-                moveBitboard &= moveBitboard - 1;
+                final long b2 = moveBitboard & -moveBitboard;
+                moveBitboard ^= b2;
+                final int targetSquare = lsb[(int) ((b2 * DB) >>> 58)];
                 final int targetRank = targetSquare >>> 3;
-                final int moveInfo = square | (targetSquare << Board.TARGET_SQUARE_SHIFT) | (piece << Board.START_PIECE_SHIFT) | (Board.getSquare(board0, board1, board2, board3, targetSquare) << Board.TARGET_PIECE_SHIFT);
+                final int promoteInfo = moveInfo | (targetSquare << Board.TARGET_SQUARE_SHIFT) | (Board.getSquare(board0, board1, board2, board3, targetSquare) << Board.TARGET_PIECE_SHIFT);
                 if(targetRank == (player == Value.WHITE ? 7 : 0)) {
-                    moves[moveListLength++] = moveInfo | ((Piece.QUEEN | playerBit) << Board.PROMOTE_PIECE_SHIFT);
-                    moves[moveListLength++] = moveInfo | ((Piece.ROOK | playerBit) << Board.PROMOTE_PIECE_SHIFT);
-                    moves[moveListLength++] = moveInfo | ((Piece.BISHOP | playerBit) << Board.PROMOTE_PIECE_SHIFT);
-                    moves[moveListLength++] = moveInfo | ((Piece.KNIGHT | playerBit) << Board.PROMOTE_PIECE_SHIFT);
+                    moves[moveListLength++] = promoteInfo | ((Piece.QUEEN | playerBit) << Board.PROMOTE_PIECE_SHIFT);
+                    moves[moveListLength++] = promoteInfo | ((Piece.ROOK | playerBit) << Board.PROMOTE_PIECE_SHIFT);
+                    moves[moveListLength++] = promoteInfo | ((Piece.BISHOP | playerBit) << Board.PROMOTE_PIECE_SHIFT);
+                    moves[moveListLength++] = promoteInfo | ((Piece.KNIGHT | playerBit) << Board.PROMOTE_PIECE_SHIFT);
                 } else {
-                    moves[moveListLength ++] = moveInfo;
+                    moves[moveListLength ++] = promoteInfo;
                 }
             }
             if(tactical) continue;
@@ -144,17 +159,18 @@ public class Gen {
                 moveBitboard = (moveBitboard | pawnAdvanceDouble[square]) & ~allOccupancy;
             }
             while(moveBitboard != 0L) {
-                final int targetSquare = BitOps.LSB[(int) (((moveBitboard & -moveBitboard) * BitOps.DB) >>> 58)];
-                moveBitboard &= moveBitboard - 1;
+                final long b2 = moveBitboard & -moveBitboard;
+                moveBitboard ^= b2;
+                final int targetSquare = lsb[(int) ((b2 * DB) >>> 58)];
                 final int targetRank = targetSquare >>> 3;
-                final int moveInfo = square | (targetSquare << Board.TARGET_SQUARE_SHIFT) | (piece << Board.START_PIECE_SHIFT);
+                final int promoteInfo = moveInfo | (targetSquare << Board.TARGET_SQUARE_SHIFT);
                 if(targetRank == (player == Value.WHITE ? 7 : 0)) {
-                    moves[moveListLength++] = moveInfo | ((Piece.QUEEN | playerBit) << Board.PROMOTE_PIECE_SHIFT);
-                    moves[moveListLength++] = moveInfo | ((Piece.BISHOP | playerBit) << Board.PROMOTE_PIECE_SHIFT);
-                    moves[moveListLength++] = moveInfo | ((Piece.KNIGHT | playerBit) << Board.PROMOTE_PIECE_SHIFT);
-                    moves[moveListLength++] = moveInfo | ((Piece.ROOK | playerBit) << Board.PROMOTE_PIECE_SHIFT);
+                    moves[moveListLength++] = promoteInfo | ((Piece.QUEEN | playerBit) << Board.PROMOTE_PIECE_SHIFT);
+                    moves[moveListLength++] = promoteInfo | ((Piece.BISHOP | playerBit) << Board.PROMOTE_PIECE_SHIFT);
+                    moves[moveListLength++] = promoteInfo | ((Piece.KNIGHT | playerBit) << Board.PROMOTE_PIECE_SHIFT);
+                    moves[moveListLength++] = promoteInfo | ((Piece.ROOK | playerBit) << Board.PROMOTE_PIECE_SHIFT);
                 } else {
-                    moves[moveListLength ++] = moveInfo;
+                    moves[moveListLength ++] = promoteInfo;
                 }
             }
         }
@@ -163,21 +179,36 @@ public class Gen {
 
     private static int getQueenMoves(long board0, long board1, long board2,long board3, long colorMask, long[] moves, int piece, int player, int moveListLength, long allOccupancy, long otherOccupancy, boolean tactical) {
         long queenBitboard = ~board0 & board1 & ~board2 & colorMask;
+        final int[] lsb = LSB;
+        final long[][] rookMoves = Magic.ROOK_MOVES;
+        final long[][] bishopMoves = Magic.BISHOP_MOVES;
+        final long[] rookMovement = Magic.ROOK_MOVEMENT;
+        final long[] bishopMovement = Magic.BISHOP_MOVEMENT;
+        final long[] rookMagics = Magic.ROOK_MAGIC_NUMBER;
+        final long[] bishopMagics = Magic.BISHOP_MAGIC_NUMBER;
+        final int[] rookShifts = Magic.ROOK_SHIFT;
+        final int[] bishopShifts = Magic.BISHOP_SHIFT;
         while(queenBitboard != 0L) {
-            final int square = BitOps.LSB[(int) (((queenBitboard & -queenBitboard) * BitOps.DB) >>> 58)];
-            queenBitboard &= queenBitboard - 1;
-            final long magic = Magic.queenMoves(square, allOccupancy);
+            final long b = queenBitboard & -queenBitboard;
+            queenBitboard ^= b;
+            final int square = lsb[(int) ((b * DB) >>> 58)];
+            final long magic = 
+                rookMoves[square][(int)   ((allOccupancy & rookMovement[square])   * rookMagics[square]   >>> rookShifts[square])] |
+                bishopMoves[square][(int) ((allOccupancy & bishopMovement[square]) * bishopMagics[square] >>> bishopShifts[square])];
             long moveBitboard = magic & otherOccupancy;
+            final int moveInfo = square | (piece << Board.START_PIECE_SHIFT);
             while(moveBitboard != 0L) {
-                final int targetSquare = BitOps.LSB[(int) (((moveBitboard & -moveBitboard) * BitOps.DB) >>> 58)];
-                moveBitboard &= moveBitboard - 1;
-                moves[moveListLength ++] = square | (targetSquare << Board.TARGET_SQUARE_SHIFT) | (piece << Board.START_PIECE_SHIFT) | (Board.getSquare(board0, board1, board2, board3, targetSquare) << Board.TARGET_PIECE_SHIFT);
+                final long b2 = moveBitboard & -moveBitboard;
+                moveBitboard ^= b2;
+                final int targetSquare = lsb[(int) ((b2 * DB) >>> 58)];
+                moves[moveListLength ++] = moveInfo | (targetSquare << Board.TARGET_SQUARE_SHIFT) | (Board.getSquare(board0, board1, board2, board3, targetSquare) << Board.TARGET_PIECE_SHIFT);
             }
             if(tactical) continue;
             moveBitboard = magic & ~allOccupancy;
             while(moveBitboard != 0L) {
-                moves[moveListLength ++] = square | (BitOps.LSB[(int) (((moveBitboard & -moveBitboard) * BitOps.DB) >>> 58)] << Board.TARGET_SQUARE_SHIFT) | (piece << Board.START_PIECE_SHIFT);
-                moveBitboard &= moveBitboard - 1;
+                final long b2 = moveBitboard & -moveBitboard;
+                moveBitboard ^= b2;
+                moves[moveListLength ++] = moveInfo | (lsb[(int) ((b2 * DB) >>> 58)] << Board.TARGET_SQUARE_SHIFT);
             }
         }
         return moveListLength;
@@ -185,21 +216,30 @@ public class Gen {
 
     private static int getRookMoves(long board0, long board1, long board2, long board3, long colorMask, long[] moves, int piece, int player, int moveListLength, long allOccupancy, long otherOccupancy, boolean tactical) {
         long rookBitboard = board0 & board1 & ~board2 & colorMask;
+        final int[] lsb = LSB;
+        final long[][] rookMoves = Magic.ROOK_MOVES;
+        final long[] rookMovement = Magic.ROOK_MOVEMENT;
+        final long[] rookMagics = Magic.ROOK_MAGIC_NUMBER;
+        final int[] rookShifts = Magic.ROOK_SHIFT;
         while(rookBitboard != 0L) {
-            final int square = BitOps.LSB[(int) (((rookBitboard & -rookBitboard) * BitOps.DB) >>> 58)];
-            rookBitboard &= rookBitboard - 1;
-            final long magic = Magic.rookMoves(square, allOccupancy);
+            final long b = rookBitboard & -rookBitboard;
+            rookBitboard ^= b;
+            final int square = lsb[(int) ((b * DB) >>> 58)];
+            final long magic = rookMoves[square][(int) ((allOccupancy & rookMovement[square]) * rookMagics[square] >>> rookShifts[square])];
             long moveBitboard = magic & otherOccupancy;
+            final int moveInfo = square | (piece << Board.START_PIECE_SHIFT);
             while(moveBitboard != 0L) {
-                final int targetSquare = BitOps.LSB[(int) (((moveBitboard & -moveBitboard) * BitOps.DB) >>> 58)];
-                moveBitboard &= moveBitboard - 1;
-                moves[moveListLength ++] = square | (targetSquare << Board.TARGET_SQUARE_SHIFT) | (piece << Board.START_PIECE_SHIFT) | (Board.getSquare(board0, board1, board2, board3, targetSquare) << Board.TARGET_PIECE_SHIFT);
+                final long b2 = moveBitboard & -moveBitboard;
+                moveBitboard ^= b2;
+                final int targetSquare = lsb[(int) ((b2 * DB) >>> 58)];
+                moves[moveListLength ++] = moveInfo | (targetSquare << Board.TARGET_SQUARE_SHIFT) | (Board.getSquare(board0, board1, board2, board3, targetSquare) << Board.TARGET_PIECE_SHIFT);
             }
             if(tactical) continue;
             moveBitboard = magic & ~allOccupancy;
             while(moveBitboard != 0L) {
-                moves[moveListLength ++] = square | (BitOps.LSB[(int) (((moveBitboard & -moveBitboard) * BitOps.DB) >>> 58)] << Board.TARGET_SQUARE_SHIFT) | (piece << Board.START_PIECE_SHIFT);
-                moveBitboard &= moveBitboard - 1;
+                final long b2 = moveBitboard & -moveBitboard;
+                moveBitboard ^= b2;
+                moves[moveListLength ++] = moveInfo | (lsb[(int) ((b2 * DB) >>> 58)] << Board.TARGET_SQUARE_SHIFT);
             }
         }
         return moveListLength;
@@ -207,21 +247,30 @@ public class Gen {
 
     private static int getBishopMoves(long board0, long board1, long board2, long board3, long colorMask, long[] moves, int piece, int player, int moveListLength, long allOccupancy, long otherOccupancy, boolean tactical) {
         long bishopBitboard = ~board0 & ~board1 & board2 & colorMask;
+        final int[] lsb = LSB;
+        final long[][] bishopMoves = Magic.BISHOP_MOVES;
+        final long[] bishopMovement = Magic.BISHOP_MOVEMENT;
+        final long[] bishopMagics = Magic.BISHOP_MAGIC_NUMBER;
+        final int[] bishopShifts = Magic.BISHOP_SHIFT;
         while(bishopBitboard != 0L) {
-            final int square = BitOps.LSB[(int) (((bishopBitboard & -bishopBitboard) * BitOps.DB) >>> 58)];
-            bishopBitboard &= bishopBitboard - 1;
-            final long magic = Magic.bishopMoves(square, allOccupancy);
+            final long b = bishopBitboard & -bishopBitboard;
+            bishopBitboard ^= b;
+            final int square = lsb[(int) ((b * DB) >>> 58)];
+            final long magic = bishopMoves[square][(int) ((allOccupancy & bishopMovement[square]) * bishopMagics[square] >>> bishopShifts[square])];
             long moveBitboard = magic & otherOccupancy;
+            final int moveInfo = square | (piece << Board.START_PIECE_SHIFT);
             while(moveBitboard != 0L) {
-                final int targetSquare = BitOps.LSB[(int) (((moveBitboard & -moveBitboard) * BitOps.DB) >>> 58)];
-                moveBitboard &= moveBitboard - 1;
-                moves[moveListLength ++] = square | (targetSquare << Board.TARGET_SQUARE_SHIFT) | (piece << Board.START_PIECE_SHIFT) | (Board.getSquare(board0, board1, board2, board3, targetSquare) << Board.TARGET_PIECE_SHIFT);
+                final long b2 = moveBitboard & -moveBitboard;
+                moveBitboard ^= b2;
+                final int targetSquare = lsb[(int) ((b2 * DB) >>> 58)];
+                moves[moveListLength ++] = moveInfo | (targetSquare << Board.TARGET_SQUARE_SHIFT) | (Board.getSquare(board0, board1, board2, board3, targetSquare) << Board.TARGET_PIECE_SHIFT);
             }
             if(tactical) continue;
             moveBitboard = magic & ~allOccupancy;
             while(moveBitboard != 0L) {
-                moves[moveListLength ++] = square | (BitOps.LSB[(int) (((moveBitboard & -moveBitboard) * BitOps.DB) >>> 58)] << Board.TARGET_SQUARE_SHIFT) | (piece << Board.START_PIECE_SHIFT);
-                moveBitboard &= moveBitboard - 1;
+                final long b2 = moveBitboard & -moveBitboard;
+                moveBitboard ^= b2;
+                moves[moveListLength ++] = moveInfo | (lsb[(int) ((b2 * DB) >>> 58)] << Board.TARGET_SQUARE_SHIFT);
             }
         }
         return moveListLength;
@@ -243,5 +292,22 @@ public class Gen {
             }
         }
     }
+
+    /*
+	 * To get the LSB from a long, use:
+	 * int lsbIndex = LSB[(int) (((someLong & -someLong) * DB) >>> 58)];
+	 */
+	private static final int[] LSB = {
+        0,  1, 48,  2, 57, 49, 28,  3,
+		61, 58, 50, 42, 38, 29, 17,  4,
+		62, 55, 59, 36, 53, 51, 43, 22,
+		45, 39, 33, 30, 24, 18, 12,  5,
+		63, 47, 56, 27, 60, 41, 37, 16,
+		54, 35, 52, 21, 44, 32, 23, 11,
+		46, 26, 40, 15, 34, 20, 31, 10,
+		25, 14, 19,  9, 13,  8,  7,  6
+    };
+
+	private static final long DB = 0x03f79d71b4cb0a89L;
 
 }
