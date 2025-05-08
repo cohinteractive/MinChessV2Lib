@@ -240,7 +240,7 @@ public class Perft {
             long[] nextBoard = Board.makeMove(board, move);
             if(Board.isPlayerInCheck(nextBoard, player)) continue;
             movePath.add(move);
-            if(depth == maxDepth && WATCH_MOVE != null && Move.string(move).equals(WATCH_MOVE)) {
+            if(depth == WATCH_DEPTH && WATCH_MOVE != null && Move.string(move).equals(WATCH_MOVE)) {
                 System.out.println("=== WATCH MOVE TRIGGERED ===");
                 System.out.println("Move: " + Move.string(move));
                 System.out.println(Board.boardString(nextBoard));
