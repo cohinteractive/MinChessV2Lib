@@ -1,6 +1,7 @@
 package com.ohinteractive.minchessv2lib;
 
 import com.ohinteractive.minchessv2lib.impl.Board;
+import com.ohinteractive.minchessv2lib.impl.Gen;
 import com.ohinteractive.minchessv2lib.impl.search.Search;
 import com.ohinteractive.minchessv2lib.impl.search.SearchResult;
 import com.ohinteractive.minchessv2lib.test.TestEval;
@@ -10,7 +11,7 @@ import com.ohinteractive.minchessv2lib.util.Perft;
 public class App {
     
     public static void main(String[] args) {
-        testSearch();
+        perft();
     }
 
     public static void perft() {
