@@ -10,7 +10,7 @@ public class Gen {
     public static final int MAX_MOVELIST_SIZE = 100;
     public static final int MOVELIST_SIZE = MAX_MOVELIST_SIZE - 1;
 
-    public static long[] gen(long[] board, boolean legal, boolean tactical) {
+    public static long[] gen(long[] board, boolean legal, boolean tactical, long[] movesBuffer) {
         final int status = (int) board[Board.STATUS];
         final int player = status & Board.PLAYER_BIT;
         final int playerBit = player << Board.PLAYER_SHIFT;
@@ -21,29 +21,31 @@ public class Gen {
         final long allOccupancy = board0 | board1 | board2;
         final long colorMask = ~(-(player) ^ board3);
         final long otherOccupancy = allOccupancy & ~colorMask;
-        long[] moves = new long[MAX_MOVELIST_SIZE];
         int moveListLength = 0;
-        moveListLength = getKingMoves(board0, board1, board2, board3, colorMask, status, moves, Piece.KING | playerBit, moveListLength, player, allOccupancy, otherOccupancy, tactical);
-        moveListLength = getQueenMoves(board0, board1, board2, board3, colorMask, moves, Piece.QUEEN | playerBit, player, moveListLength, allOccupancy, otherOccupancy, tactical);
-        moveListLength = getPawnMoves(board0, board1, board2, board3, colorMask, status, moves, Piece.PAWN | playerBit, moveListLength, player, allOccupancy, otherOccupancy, tactical);
-        moveListLength = getRookMoves(board0, board1, board2, board3, colorMask, moves, Piece.ROOK | playerBit, player, moveListLength, allOccupancy, otherOccupancy, tactical);
-        moveListLength = getBishopMoves(board0, board1, board2, board3, colorMask, moves, Piece.BISHOP | playerBit, player, moveListLength, allOccupancy, otherOccupancy, tactical);
-        moveListLength = getKnightMoves(board0, board1, board2, board3, colorMask, player, moves, Piece.KNIGHT | playerBit, moveListLength, allOccupancy, otherOccupancy, tactical);
-        moves[MOVELIST_SIZE] = moveListLength;
-        return legal ? purgeIllegalMoves(board, moves, player, moveListLength) : moves;
+        moveListLength = getKingMoves(board0, board1, board2, board3, colorMask, status, movesBuffer, Piece.KING | playerBit, moveListLength, player, allOccupancy, otherOccupancy, tactical);
+        moveListLength = getQueenMoves(board0, board1, board2, board3, colorMask, movesBuffer, Piece.QUEEN | playerBit, player, moveListLength, allOccupancy, otherOccupancy, tactical);
+        moveListLength = getPawnMoves(board0, board1, board2, board3, colorMask, status, movesBuffer, Piece.PAWN | playerBit, moveListLength, player, allOccupancy, otherOccupancy, tactical);
+        moveListLength = getRookMoves(board0, board1, board2, board3, colorMask, movesBuffer, Piece.ROOK | playerBit, player, moveListLength, allOccupancy, otherOccupancy, tactical);
+        moveListLength = getBishopMoves(board0, board1, board2, board3, colorMask, movesBuffer, Piece.BISHOP | playerBit, player, moveListLength, allOccupancy, otherOccupancy, tactical);
+        moveListLength = getKnightMoves(board0, board1, board2, board3, colorMask, player, movesBuffer, Piece.KNIGHT | playerBit, moveListLength, allOccupancy, otherOccupancy, tactical);
+        if(legal) {
+            moveListLength = purgeIllegalMoves(board, movesBuffer, player, moveListLength);
+        }
+        long[] moves = new long[moveListLength];
+        System.arraycopy(movesBuffer, 0, moves, 0, moveListLength);
+        return moves;
     }
 
     private Gen() {}
 
-    private static long[] purgeIllegalMoves(long[] board, long[] moves, int player, int moveListLength) {
+    private static int purgeIllegalMoves(long[] board, long[] moves, int player, int moveListLength) {
         int legalMoveCount = 0;
         for(int i = 0; i < moveListLength; i ++) {
             final long move = moves[i];
             final long[] boardAfterMove = Board.makeMove(board, move);
             if(!Board.isPlayerInCheck(boardAfterMove, player)) moves[legalMoveCount ++] = move;
         }
-        moves[MOVELIST_SIZE] = legalMoveCount;
-        return moves;
+        return legalMoveCount;
     }
 
     private static final int WHITE_KINGSIDE_CASTLING_BIT_UNSHIFTED = 0b10;
