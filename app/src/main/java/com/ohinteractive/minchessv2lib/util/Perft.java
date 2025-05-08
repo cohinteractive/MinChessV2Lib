@@ -37,17 +37,24 @@ public class Perft {
         long[] board = Board.fromFen(fen);
         System.out.println(Board.boardString(board));
         long startTime = System.nanoTime();
-        long nodes = perft(board, depth, PARALLEL, RECURSIVE);
+        long nodes = perft(board, depth, PARALLEL, !RECURSIVE);
         long elapsedMs = (System.nanoTime() - startTime) / 1_000_000;
         if(nodes == expectedNodes) {
             System.out.println("Result: PASSED\n");
         } else {
             long diff = expectedNodes - nodes;
-            System.out.printf("Result: FAILED (expected %,d, got %,d, diff %,d)%m%n", expectedNodes, nodes, diff);
+            System.out.printf("Result: FAILED (expected %,d, got %,d, diff %,d)m%n", expectedNodes, nodes, diff);
         }
         return elapsedMs;
     }
 
+    public static void runDebug(String fen, int depth) {
+        long[] board = Board.fromFen(fen);
+        int player = (int) board[Board.STATUS] & 1;
+        long nodes = searchDebug(board, player, depth, depth, new ArrayList<>());
+        System.out.printf("Debug perft finished: %,d nodes%n", nodes);
+    }
+    
     private static final class Frame {
         long[] board;
         int player;
@@ -82,8 +89,11 @@ public class Perft {
         void pop() { top --; }
 
         boolean isEmpty() { return top == 0; }
-
     }
+
+    private static final String WATCH_MOVE = "g2h1B";
+    private static final int WATCH_DEPTH = 2;
+    private static final boolean PRINT_MOVE_PATH = true;
     
     private static final boolean WAIT_BETWEEN_POSITIONS = true;
     private static final int WAIT_TIME_MS = 4000;
@@ -199,13 +209,59 @@ public class Perft {
         long[] moves = Gen.gen(board, false, false);
         int moveCount = (int) moves[Gen.MOVELIST_SIZE];
         for(int i = 0; i < moveCount; i ++) {
-            long[] nextBoard = Board.makeMove(board, moves[i]);
+            long move = moves[i];
+            long[] nextBoard = Board.makeMove(board, move);
             if(Board.isPlayerInCheck(nextBoard, player)) continue;
+            /*
+            if(depth == maxDepth) {
+                long start = System.currentTimeMillis();
+                long childNodes = search(nextBoard, 1 ^ player, depth - 1, maxDepth, firstMoveCount);
+                long elapsed = System.currentTimeMillis() - start;
+                System.out.printf("%d/%d  %s: %d  Elapsed: %d ms%n", i + 1, moveCount, Move.string(move), childNodes, elapsed);
+                nodes += childNodes;
+            } else */
             if(depth == 1) {
                 nodes ++;
             } else {
                 nodes += search(nextBoard, 1 ^ player, depth - 1, maxDepth, firstMoveCount);
             }
+        }
+        return nodes;
+    }
+
+    private static long searchDebug(long[] board, int player, int depth, int maxDepth, List<Long> movePath) {
+        if(depth == 0) return 1;
+        long nodes = 0;
+        long[] moves = Gen.gen(board, true, false);
+        int moveCount = (int) moves[Gen.MOVELIST_SIZE];
+
+        for(int i = 0; i < moveCount; i ++) {
+            long move = moves[i];
+            long[] nextBoard = Board.makeMove(board, move);
+            if(Board.isPlayerInCheck(nextBoard, player)) continue;
+            movePath.add(move);
+            if(depth == maxDepth && WATCH_MOVE != null && Move.string(move).equals(WATCH_MOVE)) {
+                System.out.println("=== WATCH MOVE TRIGGERED ===");
+                System.out.println("Move: " + Move.string(move));
+                System.out.println(Board.boardString(nextBoard));
+                System.out.println("Move list:");
+                System.out.println(Move.moveListString(Gen.gen(nextBoard, true, false)));
+                if(PRINT_MOVE_PATH) printMovePath(movePath);
+                System.out.println("FEN: " + Board.toFen(nextBoard));
+                System.out.println("Board to String:\n" + Board.toString(nextBoard));
+            }
+            if(depth == maxDepth) {
+                long start = System.currentTimeMillis();
+                long childNodes = searchDebug(nextBoard, 1 ^ player, depth - 1, maxDepth, movePath);
+                long elapsed = System.currentTimeMillis() - start;
+                System.out.printf("%d/%d  %s: %d  Elapsed: %d ms%n", i + 1, moveCount, Move.string(move), childNodes, elapsed);
+                nodes += childNodes;
+            } else if(depth == 1) {
+                nodes ++;
+            } else {
+                nodes += searchDebug(nextBoard, 1 ^ player, depth - 1, maxDepth, movePath);
+            }
+            movePath.remove(movePath.size() - 1);
         }
         return nodes;
     }
@@ -238,6 +294,14 @@ public class Perft {
         try {
             Thread.sleep(millis);
         } catch(InterruptedException ignored) {}
+    }
+
+    private static void printMovePath(List<Long> movePath) {
+        System.out.println("Move path: ");
+        for(long m : movePath) {
+            System.out.print(Move.string(m) + " ");
+        }
+        System.out.println();
     }
 
 }
