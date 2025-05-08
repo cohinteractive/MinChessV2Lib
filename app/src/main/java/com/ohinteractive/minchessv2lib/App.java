@@ -35,6 +35,18 @@ public class App {
         TestEval.test();
     }
 
+    public static void testGen() {
+        long time = System.nanoTime();
+        long[] testBoard = Board.startingPosition();
+        for(int i = 0; i < 1000000; i ++) {
+            long[] moves = Gen.gen(testBoard, false, false);
+            long[] newBoard = Board.makeMove(testBoard, moves[0]);
+            newBoard[5] = 0L;
+        }
+        time = System.nanoTime() - time;
+        System.out.println("Elapsed: " + time);
+    }
+
     public static void draw(long[] board) {
         System.out.println(Board.boardString(board) + "\n");
         try {
