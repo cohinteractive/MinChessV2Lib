@@ -144,7 +144,7 @@ public class Gen {
                 final int targetSquare = lsb[(int) ((b2 * DB) >>> 58)];
                 final int targetRank = targetSquare >>> 3;
                 final int promoteInfo = moveInfo | (targetSquare << Board.TARGET_SQUARE_SHIFT) | (Board.getSquare(board0, board1, board2, board3, targetSquare) << Board.TARGET_PIECE_SHIFT);
-                if(targetRank == (player == Value.WHITE ? 7 : 0)) {
+                if(targetRank == (7 & ~(-player))) {
                     moves[moveListLength++] = promoteInfo | ((Piece.QUEEN | playerBit) << Board.PROMOTE_PIECE_SHIFT);
                     moves[moveListLength++] = promoteInfo | ((Piece.ROOK | playerBit) << Board.PROMOTE_PIECE_SHIFT);
                     moves[moveListLength++] = promoteInfo | ((Piece.BISHOP | playerBit) << Board.PROMOTE_PIECE_SHIFT);
@@ -164,7 +164,7 @@ public class Gen {
                 final int targetSquare = lsb[(int) ((b2 * DB) >>> 58)];
                 final int targetRank = targetSquare >>> 3;
                 final int promoteInfo = moveInfo | (targetSquare << Board.TARGET_SQUARE_SHIFT);
-                if(targetRank == (player == Value.WHITE ? 7 : 0)) {
+                if(targetRank == (7 & ~(-player))) {
                     moves[moveListLength++] = promoteInfo | ((Piece.QUEEN | playerBit) << Board.PROMOTE_PIECE_SHIFT);
                     moves[moveListLength++] = promoteInfo | ((Piece.BISHOP | playerBit) << Board.PROMOTE_PIECE_SHIFT);
                     moves[moveListLength++] = promoteInfo | ((Piece.KNIGHT | playerBit) << Board.PROMOTE_PIECE_SHIFT);
