@@ -11,7 +11,7 @@ import com.ohinteractive.minchessv2lib.util.Perft;
 public class App {
     
     public static void main(String[] args) {
-        perft();
+        testSearch();
     }
 
     public static void perft() {
