@@ -38,8 +38,9 @@ public class App {
     public static void testGen() {
         long time = System.nanoTime();
         long[] testBoard = Board.startingPosition();
+        long[] movesBuffer = new long[100];
         for(int i = 0; i < 1000000; i ++) {
-            long[] moves = Gen.gen(testBoard, false, false);
+            long[] moves = Gen.gen(testBoard, false, false, movesBuffer);
             long[] newBoard = Board.makeMove(testBoard, moves[0]);
             newBoard[5] = 0L;
         }

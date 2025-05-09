@@ -10,8 +10,9 @@ public class Search {
     public static SearchResult bestMove(long[] rootPosition, int maxDepth, long maxTimeMillis) {
         int player = (int) rootPosition[Board.STATUS] & Board.PLAYER_BIT;
         long[] newPosition = new long[Board.MAX_BITBOARDS];
-        long[] moves = Gen.gen(rootPosition, false, false);
-        int moveCount = (int) moves[Gen.MOVELIST_SIZE];
+        long[] movesBuffer = new long[Gen.MAX_MOVELIST_SIZE];
+        long[] moves = Gen.gen(rootPosition, false, false, movesBuffer);
+        int moveCount = moves.length;
         int bestScore = -INF;
         long bestMove = 0L;
         for(int i = 0; i < moveCount; i ++) {
@@ -20,7 +21,7 @@ public class Search {
             Board.makeMoveWith(newPosition, move);
             if(Board.isPlayerInCheck(newPosition, player)) continue;
             System.out.print("Move " + Move.string(move) + ": ");
-            int score = -searchFlattened(newPosition, maxDepth - 1);
+            int score = -searchFlattened(newPosition, maxDepth - 1, movesBuffer);
             if(score > bestScore) {
                 bestScore = score;
                 bestMove = move;
@@ -34,7 +35,7 @@ public class Search {
 
     private Search() {}
 
-    private static int searchFlattened(long[] position, int depth) {
+    private static int searchFlattened(long[] position, int depth, long[] movesBuffer) {
         long[] newPosition = new long[Board.MAX_BITBOARDS];
         SearchStack stack = new SearchStack(depth + 1);
         int score = -INF;
@@ -49,14 +50,14 @@ public class Search {
         frame.alpha = -INF;
         frame.bestMove = 0L;
         frame.moveFromParent = 0L;
-        frame.moves = Gen.gen(position, false, false);
-        frame.moveListLength = (int) frame.moves[Gen.MOVELIST_SIZE];
+        frame.moves = Gen.gen(position, false, false, movesBuffer);
+        frame.moveListLength = frame.moves.length;
         frame.moveIndex = 0;
         while(!stack.isEmpty()) {
             frame = stack.peek();
             int player = frame.player;
             if(frame.depth == 0 || frame.moveListLength == 0) {
-                int eval = quiesceFlattened(frame.position);
+                int eval = quiesceFlattened(frame.position, movesBuffer);
                 stack.pop();
                 if(stack.isEmpty()) {
                     return eval;
@@ -83,8 +84,8 @@ public class Search {
                 child.alpha = -INF;
                 child.bestMove = 0L;
                 child.moveFromParent = move;
-                child.moves = Gen.gen(newPosition, false, false);
-                child.moveListLength = (int) child.moves[Gen.MOVELIST_SIZE];
+                child.moves = Gen.gen(newPosition, false, false, movesBuffer);
+                child.moveListLength = child.moves.length;
                 child.moveIndex = 0;
                 continue;
             }
@@ -102,7 +103,7 @@ public class Search {
         return score;
     }
 
-    private static int quiesceFlattened(long[] position) {
+    private static int quiesceFlattened(long[] position, long[] movesBuffer) {
         long[] newPosition = new long[Board.MAX_BITBOARDS];
         SearchStack stack = new SearchStack(32);
         SearchFrame parent;
@@ -112,8 +113,8 @@ public class Search {
         frame.player = (int) position[Board.STATUS] & Board.PLAYER_BIT;
         frame.ply = 0;
         frame.alpha = Eval.eval(position[0], position[1], position[2], position[3], position[Board.STATUS], position[Board.KEY]); // alpha = score
-        frame.moves = Gen.gen(position, false, true);
-        frame.moveListLength = (int) frame.moves[Gen.MOVELIST_SIZE];
+        frame.moves = Gen.gen(position, false, true, movesBuffer);
+        frame.moveListLength = frame.moves.length;
         frame.moveIndex = 0;
         frame.beta = frame.alpha; // beta is best score
         frame.moveFromParent = 0L;
@@ -141,8 +142,8 @@ public class Search {
             System.arraycopy(newPosition, 0, child.position, 0, Board.MAX_BITBOARDS);
             child.player = (int) newPosition[Board.STATUS] & Board.PLAYER_BIT;
             child.alpha = eval;
-            child.moves = Gen.gen(newPosition, false, true);
-            child.moveListLength = (int) child.moves[Gen.MOVELIST_SIZE];
+            child.moves = Gen.gen(newPosition, false, true, movesBuffer);
+            child.moveListLength = child.moves.length;
             child.moveIndex = 0;
             child.beta = eval;
             child.ply = frame.ply + 1;

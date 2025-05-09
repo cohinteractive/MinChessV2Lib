@@ -78,8 +78,8 @@ public class Perft {
             f.board = board;
             f.player = player;
             f.depth = depth;
-            f.moves = Gen.gen(board, false, false);
-            f.moveCount = (int) f.moves[Gen.MOVELIST_SIZE];
+            f.moves = Gen.gen(board, false, false, threadLocalMovesBuffer.get());
+            f.moveCount = f.moves.length;
             f.moveIndex = 0;
             return f;
         }
@@ -90,6 +90,8 @@ public class Perft {
 
         boolean isEmpty() { return top == 0; }
     }
+
+    private static final ThreadLocal<long[]> threadLocalMovesBuffer = ThreadLocal.withInitial(() -> new long[Gen.MAX_MOVELIST_SIZE]);
 
     private static final String WATCH_MOVE = "g2h1B";
     private static final int WATCH_DEPTH = 2;
@@ -178,8 +180,8 @@ public class Perft {
     }
 
     private static long searchParallel(long[] board, int player, int depth, boolean recursive) throws InterruptedException, ExecutionException {
-        long[] moves = Gen.gen(board, false, false);
-        int moveCount = (int) moves[Gen.MOVELIST_SIZE];
+        long[] moves = Gen.gen(board, false, false, threadLocalMovesBuffer.get());
+        int moveCount = moves.length;
         ExecutorService executor = Executors.newFixedThreadPool(THREAD_COUNT);
         List<Future<Long>> futures = new ArrayList<>();
         for(int i = 0; i < moveCount; i ++) {
@@ -206,8 +208,8 @@ public class Perft {
     private static long search(long[] board, int player, int depth, int maxDepth, int firstMoveCount) {
         if(depth == 0) return 1;
         long nodes = 0;
-        long[] moves = Gen.gen(board, false, false);
-        int moveCount = (int) moves[Gen.MOVELIST_SIZE];
+        long[] moves = Gen.gen(board, false, false, threadLocalMovesBuffer.get());
+        int moveCount = moves.length;
         for(int i = 0; i < moveCount; i ++) {
             long move = moves[i];
             long[] nextBoard = Board.makeMove(board, move);
@@ -232,9 +234,8 @@ public class Perft {
     private static long searchDebug(long[] board, int player, int depth, int maxDepth, List<Long> movePath) {
         if(depth == 0) return 1;
         long nodes = 0;
-        long[] moves = Gen.gen(board, true, false);
-        int moveCount = (int) moves[Gen.MOVELIST_SIZE];
-
+        long[] moves = Gen.gen(board, true, false, threadLocalMovesBuffer.get());
+        int moveCount = moves.length;
         for(int i = 0; i < moveCount; i ++) {
             long move = moves[i];
             long[] nextBoard = Board.makeMove(board, move);
@@ -245,7 +246,7 @@ public class Perft {
                 System.out.println("Move: " + Move.string(move));
                 System.out.println(Board.boardString(nextBoard));
                 System.out.println("Move list:");
-                System.out.println(Move.moveListString(Gen.gen(nextBoard, true, false)));
+                System.out.println(Move.moveListString(Gen.gen(nextBoard, true, false, threadLocalMovesBuffer.get())));
                 if(PRINT_MOVE_PATH) printMovePath(movePath);
                 System.out.println("FEN: " + Board.toFen(nextBoard));
                 System.out.println("Board to String:\n" + Board.toString(nextBoard));

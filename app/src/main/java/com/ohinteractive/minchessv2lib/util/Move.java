@@ -138,8 +138,8 @@ public class Move {
         }
         long[] tempBoard = Board.makeMove(board, move);
         if (Board.isPlayerInCheck(tempBoard, 1 ^ player)) {
-            long[] moves = Gen.gen(tempBoard, true, false);
-            if (moves[Gen.MOVELIST_SIZE] == 0) {
+            long[] moves = Gen.gen(tempBoard, true, false, new long[Gen.MAX_MOVELIST_SIZE]);
+            if (moves.length == 0) {
                 notation += "#";
             } else {
                 notation += "+";

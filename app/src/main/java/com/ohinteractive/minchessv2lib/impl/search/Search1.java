@@ -11,13 +11,14 @@ public class Search1 {
         long bestMove = 0L;
         int bestScore = -INF;
         long[] board = config.rootPosition();
-        long[] moves = Gen.gen(config.rootPosition(), true, false);
-        int moveCount = (int) moves[Gen.MOVELIST_SIZE];
+        long[] movesBuffer = new long[Gen.MAX_MOVELIST_SIZE];
+        long[] moves = Gen.gen(config.rootPosition(), true, false, movesBuffer);
+        int moveCount = moves.length;
         for(int i = 0; i < moveCount; i ++) {
             long move = moves[i];
             System.out.println("Move " + Move.string(move));
             long[] next = Board.makeMove(board, move);
-            int score = -negamax(next, Board.player(next), config.maxDepth() - 1, -INF, INF);
+            int score = -negamax(next, Board.player(next), config.maxDepth() - 1, -INF, INF, movesBuffer);
             System.out.print(" " + score);
             if(score > bestScore) {
                 bestScore = score;
@@ -31,7 +32,7 @@ public class Search1 {
 
     private static final int INF = 999999;
 
-    private static int negamax(long[] board, int player, int depth, int alpha, int beta) {
+    private static int negamax(long[] board, int player, int depth, int alpha, int beta, long[] movesBuffer) {
         //System.out.println("Entered negamax");
     
         SearchStack stack = new SearchStack(depth + 1);
@@ -44,7 +45,7 @@ public class Search1 {
         frame.depth = depth;
         frame.alpha = alpha;
         frame.beta = beta;
-        frame.moves = Gen.gen(board, true, false);
+        frame.moves = Gen.gen(board, true, false, movesBuffer);
         frame.moveIndex = 0;
         frame.ply = ply;
     
@@ -54,7 +55,7 @@ public class Search1 {
             frame = stack.peek();
             //System.out.printf("Peeked top frame (%04x) at depth %d, ply %d%n", frame.position[Board.KEY] & 0xffff, frame.depth, frame.ply);
     
-            if (frame.depth == 0 || frame.moves[Gen.MOVELIST_SIZE] == 0) {
+            if (frame.depth == 0 || frame.moves.length == 0) {
                 long[] current = frame.position;
                 int eval = Eval.eval(current[0], current[1], current[2], current[3], current[Board.STATUS], current[Board.KEY]) * (frame.player == 0 ? 1 : -1);
                 //System.out.printf("Leaf node reached (%04x), evaluated score %d%n", board[Board.KEY] & 0xffff, eval);
@@ -83,7 +84,7 @@ public class Search1 {
                 continue;
             }
     
-            if (frame.moveIndex < frame.moves[Gen.MOVELIST_SIZE]) {
+            if (frame.moveIndex < frame.moves.length) {
                 long move = frame.moves[frame.moveIndex++];
                 long[] newPosition = Board.makeMove(frame.position, move);
     
@@ -95,7 +96,7 @@ public class Search1 {
                 child.depth = frame.depth - 1;
                 child.alpha = -frame.beta;
                 child.beta = -frame.alpha;
-                child.moves = Gen.gen(newPosition, true, false);
+                child.moves = Gen.gen(newPosition, true, false, movesBuffer);
                 child.moveIndex = 0;
                 child.ply = frame.ply + 1;
                 child.bestMove = move;
@@ -132,7 +133,7 @@ public class Search1 {
         return score;
     }
     
-    public static int quiesce(long[] board, int player, int alpha, int beta) {
+    public static int quiesce(long[] board, int player, int alpha, int beta, long[] movesBuffer) {
         SearchStack stack = new SearchStack(32);
 
         SearchFrame frame = stack.push();
@@ -140,7 +141,7 @@ public class Search1 {
         frame.player = player;
         frame.alpha = alpha;
         frame.beta = beta;
-        frame.moves = Gen.gen(board, true, true);
+        frame.moves = Gen.gen(board, true, true, movesBuffer);
         frame.moveIndex = 0;
         frame.standPatEvaluated = false;
 
@@ -167,7 +168,7 @@ public class Search1 {
                 frame.standPatEvaluated = true;
             }
 
-            if (frame.moveIndex < frame.moves[Gen.MOVELIST_SIZE]) {
+            if (frame.moveIndex < frame.moves.length) {
                 long move = frame.moves[frame.moveIndex ++];
                 long[] next = Board.makeMove(frame.position, move);
     
@@ -176,7 +177,7 @@ public class Search1 {
                 child.player = 1 ^ frame.player;
                 child.alpha = -frame.beta;
                 child.beta = -frame.alpha;
-                child.moves = Gen.gen(next, true, true);
+                child.moves = Gen.gen(next, true, true, movesBuffer);
                 child.moveIndex = 0;
                 child.standPatEvaluated = false;
             } else {
