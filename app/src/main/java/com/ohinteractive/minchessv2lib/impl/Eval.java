@@ -73,34 +73,34 @@ public class Eval {
         final long lightSquares = LIGHT_SQUARES_BITBOARD;
 
         final long whiteKingRing = KING_RING[Value.WHITE][whiteKingSquare];
-        final long blackKingRing = KING_RING[Value.WHITE][blackKingSquare];
+        final long blackKingRing = KING_RING[Value.BLACK][blackKingSquare];
 
-        final int whiteQueenEvalAndSafety = queenEval(whiteQueen, whiteQueenCount, phase, Value.WHITE, whiteBishop, whiteKnight, allOccupancy, whiteOccupancy, blackKingRank, blackKingFile, blackKingSquare, blackKingRing);
-        final int whiteRookEvalAndSafety = rookEval(whiteRook, whiteRookCount, phase, Value.WHITE, whiteKing, whitePawn, allOccupancy, whiteOccupancy, blackPawn, blackQueen, blackKingRank, blackKingFile, blackKingSquare, blackKingRing);
-        final int whiteBishopEvalAndSafety = bishopEval(whiteBishop, whiteBishopCount, phase, Value.WHITE, Value.BLACK, allOccupancy, whiteOccupancy, whitePawn, blackPawn, lightSquares, whiteKingRank, whiteKingFile, blackKingRank, blackKingFile, blackKingSquare, blackKingRing);
-        final int whiteKnightEvalAndSafety = knightEval(whiteKnight, whiteKnightCount, phase, whitePawn, Value.WHITE, Value.BLACK, whiteOccupancy, blackPawn, whiteKingRank, whiteKingFile, blackKingRank, blackKingFile, blackKingSquare, blackKingRing);
+        final long whiteQueenEvalAndSafety = queenEval(whiteQueen, whiteQueenCount, phase, Value.WHITE, whiteBishop, whiteKnight, allOccupancy, whiteOccupancy, blackKingRank, blackKingFile, blackKingSquare, blackKingRing);
+        final long whiteRookEvalAndSafety = rookEval(whiteRook, whiteRookCount, phase, Value.WHITE, whiteKing, whitePawn, allOccupancy, whiteOccupancy, blackPawn, blackQueen, blackKingRank, blackKingFile, blackKingSquare, blackKingRing);
+        final long whiteBishopEvalAndSafety = bishopEval(whiteBishop, whiteBishopCount, phase, Value.WHITE, Value.BLACK, allOccupancy, whiteOccupancy, whitePawn, blackPawn, lightSquares, whiteKingRank, whiteKingFile, blackKingRank, blackKingFile, blackKingSquare, blackKingRing);
+        final long whiteKnightEvalAndSafety = knightEval(whiteKnight, whiteKnightCount, phase, whitePawn, Value.WHITE, Value.BLACK, whiteOccupancy, blackPawn, whiteKingRank, whiteKingFile, blackKingRank, blackKingFile, blackKingSquare, blackKingRing);
         int whiteEval =
         kingEval(Value.WHITE, whiteKingSquare, phase, whiteKingRank, whiteKingFile, whiteRook, whitePawn, blackPawn, whitePieceMaterial, blackPieceMaterial, blackKingFile, blackKingRank) +
-        (whiteQueenEvalAndSafety >> EVAL_SHIFT) +
-        (whiteRookEvalAndSafety >> EVAL_SHIFT) +
-        (whiteBishopEvalAndSafety >> EVAL_SHIFT) +
-        (whiteKnightEvalAndSafety >> EVAL_SHIFT) +
+        (int) (whiteQueenEvalAndSafety >> EVAL_SHIFT) +
+        (int) (whiteRookEvalAndSafety >> EVAL_SHIFT) +
+        (int) (whiteBishopEvalAndSafety >> EVAL_SHIFT) +
+        (int) (whiteKnightEvalAndSafety >> EVAL_SHIFT) +
         pawnEval(whitePawn, phase, Value.WHITE, whiteBishopsKnights, blackPawn, whitePieceMaterial, whiteKingRank, whiteKingFile, blackKingRank, blackKingFile, blackPieceMaterial, thisPlayer, whiteKing);
-        final int blackQueenEvalAndSafety = queenEval(blackQueen, blackQueenCount, phase, Value.BLACK, blackBishop, blackKnight, allOccupancy, blackOccupancy, whiteKingRank, whiteKingFile, whiteKingSquare, whiteKingRing);
-        final int blackRookEvalAndSafety = rookEval(blackRook, blackRookCount, phase, Value.BLACK, blackKing, blackPawn, allOccupancy, blackOccupancy, whitePawn, whiteQueen, whiteKingRank, whiteKingFile, whiteKingSquare, whiteKingRing);
-        final int blackBishopEvalAndSafety = bishopEval(blackBishop, blackBishopCount, phase, Value.BLACK, Value.WHITE, allOccupancy, blackOccupancy, blackPawn, whitePawn, lightSquares, blackKingRank, blackKingFile, whiteKingRank, whiteKingFile, whiteKingSquare, whiteKingRing);
-        final int blackKnightEvalAndSafety = knightEval(blackKnight, blackKnightCount, phase, blackPawn, Value.BLACK, Value.WHITE, blackOccupancy, whitePawn, blackKingRank, blackKingFile, whiteKingRank, whiteKingFile, whiteKingSquare, whiteKingRing);
+        final long blackQueenEvalAndSafety = queenEval(blackQueen, blackQueenCount, phase, Value.BLACK, blackBishop, blackKnight, allOccupancy, blackOccupancy, whiteKingRank, whiteKingFile, whiteKingSquare, whiteKingRing);
+        final long blackRookEvalAndSafety = rookEval(blackRook, blackRookCount, phase, Value.BLACK, blackKing, blackPawn, allOccupancy, blackOccupancy, whitePawn, whiteQueen, whiteKingRank, whiteKingFile, whiteKingSquare, whiteKingRing);
+        final long blackBishopEvalAndSafety = bishopEval(blackBishop, blackBishopCount, phase, Value.BLACK, Value.WHITE, allOccupancy, blackOccupancy, blackPawn, whitePawn, lightSquares, blackKingRank, blackKingFile, whiteKingRank, whiteKingFile, whiteKingSquare, whiteKingRing);
+        final long blackKnightEvalAndSafety = knightEval(blackKnight, blackKnightCount, phase, blackPawn, Value.BLACK, Value.WHITE, blackOccupancy, whitePawn, blackKingRank, blackKingFile, whiteKingRank, whiteKingFile, whiteKingSquare, whiteKingRing);
         int blackEval =
         kingEval(Value.BLACK, blackKingSquare, phase, blackKingRank, blackKingFile, blackRook, blackPawn, whitePawn, blackPieceMaterial, whitePieceMaterial, whiteKingFile, whiteKingRank) +
-        (blackQueenEvalAndSafety >> EVAL_SHIFT) +
-        (blackRookEvalAndSafety >> EVAL_SHIFT) +
-        (blackBishopEvalAndSafety >> EVAL_SHIFT) +
-        (blackKnightEvalAndSafety >> EVAL_SHIFT) +
+        (int) (blackQueenEvalAndSafety >> EVAL_SHIFT) +
+        (int) (blackRookEvalAndSafety >> EVAL_SHIFT) +
+        (int) (blackBishopEvalAndSafety >> EVAL_SHIFT) +
+        (int) (blackKnightEvalAndSafety >> EVAL_SHIFT) +
         pawnEval(blackPawn, phase, Value.BLACK, blackBishopsKnights, whitePawn, blackPieceMaterial, blackKingRank, blackKingFile, whiteKingRank, whiteKingFile, whitePieceMaterial, thisPlayer, blackKing);
-        final int whiteSafety = (blackQueenEvalAndSafety & 0xff) + (blackRookEvalAndSafety & 0xff) + (blackBishopEvalAndSafety & 0xff) + (blackKnightEvalAndSafety & 0xff);
+        final int whiteSafety = (int) (blackQueenEvalAndSafety & 0xff) + (int) (blackRookEvalAndSafety & 0xff) + (int) (blackBishopEvalAndSafety & 0xff) + (int) (blackKnightEvalAndSafety & 0xff);
         final int whiteSafetyClamped = whiteSafety - ((whiteSafety - 99) & ~((whiteSafety - 99) >> 31));
         whiteEval -= SAFETY_VALUE[whiteSafetyClamped];
-        final int blackSafety = (whiteQueenEvalAndSafety & 0xff) + (whiteRookEvalAndSafety & 0xff) + (whiteBishopEvalAndSafety & 0xff) + (whiteKnightEvalAndSafety & 0xff);
+        final int blackSafety = (int) (whiteQueenEvalAndSafety & 0xff) + (int) (whiteRookEvalAndSafety & 0xff) + (int) (whiteBishopEvalAndSafety & 0xff) + (int) (whiteKnightEvalAndSafety & 0xff);
         final int blackSafetyClamped = blackSafety - ((blackSafety - 99) & ~((blackSafety - 99) >> 31));
         blackEval -= SAFETY_VALUE[blackSafetyClamped];
         int eval = (thisPlayer == Value.WHITE ? whiteEval - blackEval : blackEval - whiteEval);
@@ -132,7 +132,7 @@ public class Eval {
     private static final int EDGE_WEIGHT = 10;
     private static final int PROXIMITY_WEIGHT = 20;
     private static final int MAX_PHASE = 24;
-    private static final int EVAL_SHIFT = 8;
+    private static final int EVAL_SHIFT = 32;
     private static final int WHITE_BACK_RANK = 0;
     private static final int BLACK_BACK_RANK = 7;
     
