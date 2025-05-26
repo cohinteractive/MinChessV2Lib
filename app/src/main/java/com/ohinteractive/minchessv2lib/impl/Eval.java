@@ -119,7 +119,7 @@ public class Eval {
             if(whiteBishopsCount == 1 && blackBishopsCount == 1) {
                 final int whiteSquare = LSB[(int) (((whiteBishop & -whiteBishop) * DB) >>> 58)];
                 final int blackSquare = LSB[(int) (((blackBishop & -blackBishop) * DB) >>> 58)];
-                if(((whiteSquare >>> 3 & 1) == (whiteSquare & 1)) == ((blackSquare >>> 3 & 1) == (blackSquare & 1))) return 0;
+                if(((whiteSquare >>> 3 & 1) == (whiteSquare & 1)) != ((blackSquare >>> 3 & 1) == (blackSquare & 1))) return 0;
             }
         }
         return eval;
@@ -460,7 +460,7 @@ public class Eval {
         return eval;
     }
     
-    private static int queenEval(long bitboard, int numQueens, int phase, int player, long bishopBitboard, long knightBitboard, long allOccupancy, long occupancy, int otherKingRank, int otherKingFile, int otherKingSquare, long otherKingRing) {
+    private static long queenEval(long bitboard, int numQueens, int phase, int player, long bishopBitboard, long knightBitboard, long allOccupancy, long occupancy, int otherKingRank, int otherKingFile, int otherKingSquare, long otherKingRing) {
         // init eval and material value
         int eval = PIECE_VALUE[Piece.QUEEN][numQueens][phase];
         int safety = 0;
@@ -493,10 +493,10 @@ public class Eval {
             // other king safety
             safety += QUEEN_SAFETY[Long.bitCount(queenAttacks & otherKingRing)];
         }
-        return (eval << EVAL_SHIFT) | (safety & 0xff);
+        return ((long) eval << EVAL_SHIFT) | (safety & 0xff);
     }
 
-    private static int rookEval(long bitboard, int numRooks, int phase, int player, long kingBitboard, long pawnBitboard, long allOccupancy, long occupancy, long otherPawnBitboard, long otherQueenBitboard, int otherKingRank, int otherKingFile, int otherKingSquare, long otherKingRing) {
+    private static long rookEval(long bitboard, int numRooks, int phase, int player, long kingBitboard, long pawnBitboard, long allOccupancy, long occupancy, long otherPawnBitboard, long otherQueenBitboard, int otherKingRank, int otherKingFile, int otherKingSquare, long otherKingRing) {
         // init and material value
         int eval = PIECE_VALUE[Piece.ROOK][numRooks][phase];
         int safety = 0;
@@ -541,10 +541,10 @@ public class Eval {
             // other king safety
             safety += ROOK_SAFETY[Long.bitCount(rookAttacks & otherKingRing)];
         }
-        return (eval << EVAL_SHIFT) | (safety & 0xff);
+        return ((long) eval << EVAL_SHIFT) | (safety & 0xff);
     }
 
-    private static int bishopEval(long bitboard, int numBishops, int phase, int player, int other, long allOccupancy, long occupancy, long pawnBitboard, long otherPawnBitboard, long lightSquares, int kingRank, int kingFile, int otherKingRank, int otherKingFile, int otherKingSquare, long otherKingRing) {
+    private static long bishopEval(long bitboard, int numBishops, int phase, int player, int other, long allOccupancy, long occupancy, long pawnBitboard, long otherPawnBitboard, long lightSquares, int kingRank, int kingFile, int otherKingRank, int otherKingFile, int otherKingSquare, long otherKingRing) {
         // init eval and material value
         int eval = PIECE_VALUE[Piece.BISHOP][numBishops][phase];
         int safety = 0;
@@ -596,10 +596,10 @@ public class Eval {
             // other king safety
             safety += BISHOP_SAFETY[Long.bitCount(bishopAttacks & otherKingRing)];
         }
-        return (eval << EVAL_SHIFT) | (safety & 0xff);
+        return ((long) eval << EVAL_SHIFT) | (safety & 0xff);
     }
 
-    private static int knightEval(long bitboard, int numKnights, int phase, long pawnBitboard, int player, int other, long occupancy, long otherPawnBitboard, int kingRank, int kingFile, int otherKingRank, int otherKingFile, int otherKingSquare, long otherKingRing) {
+    private static long knightEval(long bitboard, int numKnights, int phase, long pawnBitboard, int player, int other, long occupancy, long otherPawnBitboard, int kingRank, int kingFile, int otherKingRank, int otherKingFile, int otherKingSquare, long otherKingRing) {
         // init eval and material value
         int eval = PIECE_VALUE[Piece.KNIGHT][numKnights][phase];
         int safety = 0;
@@ -651,7 +651,7 @@ public class Eval {
             // other king safety
             safety += KNIGHT_SAFETY[Long.bitCount(knightAttacks & otherKingRing)];
         }
-        return (eval << 8) | (safety & 0xff);
+        return ((long) eval << EVAL_SHIFT) | (safety & 0xff);
     }
 
     private static int pawnEval(long bitboard, int phase, int player, long knightBishopBitboard, long otherPawnBitboard, int materialValuePieces, int kingRank, int kingFile, int otherKingRank, int otherKingFile, int otherMaterialValuePieces, int thisPlayer, long kingBitboard) {
