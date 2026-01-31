@@ -601,21 +601,13 @@ public class Board {
         return Value.FILE_STRING.charAt(square & Value.FILE) + Integer.toString((square >>> 3) + 1);
     }
 
-    private static final long[] LEAP_ATTACKS = new long[64];
-    private static final long[] KING_ATTACKS = new long[64];
-    static {
-        for(int square = 0; square < 64; square ++) {
-            LEAP_ATTACKS[square] = Bitboard.BB[Bitboard.LEAP_ATTACKS][square];
-            KING_ATTACKS[square] = Bitboard.BB[Bitboard.KING_ATTACKS][square];
-        }
-    }
+    private static final long[] LEAP_ATTACKS = Bitboard.BB[Bitboard.LEAP_ATTACKS];
+    private static final long[] KING_ATTACKS = Bitboard.BB[Bitboard.KING_ATTACKS];
+
     private static final long[][] PAWN_ATTACKS = new long[2][64];
     static {
-        for(int player = 0; player < 2; player ++) {
-            for(int square = 0; square < 64; square ++) {
-                PAWN_ATTACKS[player][square] = Bitboard.BB[Bitboard.PAWN_ATTACKS_PLAYER0 + player][square];
-            }
-        }
+        PAWN_ATTACKS[0] = Bitboard.BB[Bitboard.PAWN_ATTACKS_PLAYER0];
+        PAWN_ATTACKS[1] = Bitboard.BB[Bitboard.PAWN_ATTACKS_PLAYER1];
     }
 
     public static String toFen(long[] board) {
